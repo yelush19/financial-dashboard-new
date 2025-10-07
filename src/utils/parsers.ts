@@ -97,13 +97,13 @@ export async function loadTransactionsFromPublic(): Promise<Transaction[]> {
           console.log(`נטענו ${transactions.length} תנועות מתוך ${results.data.length} שורות`);
           resolve(transactions);
         },
-        error: (error) => {
+        error: (error: any) => {
           console.error('שגיאה בפענוח CSV:', error);
           reject(error);
         }
       });
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('שגיאה בטעינת קובץ CSV:', error);
     throw error;
   }
@@ -129,7 +129,7 @@ export async function parseCSVFile(file: File): Promise<Transaction[]> {
         console.log(`נטענו ${transactions.length} תנועות מתוך ${results.data.length} שורות`);
         resolve(transactions);
       },
-      error: (error) => {
+      error: (error: any) => {
         console.error('שגיאה בפענוח CSV:', error);
         reject(error);
       }

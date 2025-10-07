@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { FileText, BarChart3, Database, TrendingUp, Phone, Mail, MapPin, ExternalLink, Shield, Zap, Award } from "lucide-react";
 import HierarchicalReport from "./components/reports/HierarchicalReport";
+import MonthlyReport from "./components/reports/MonthlyReport"; // ✅ ייבוא חדש!
 
 // פלטת צבעים רשמית של ליתאי
 const LITAY = {
@@ -21,7 +22,7 @@ const LITAY = {
 
 const tabs = [
   { id: 'hierarchical', label: "דוח רווח והפסד", icon: FileText },
-  { id: 'pivot', label: "דוח PIVOT חודשי", icon: BarChart3 },
+  { id: 'pivot', label: "דוח רווח והפסד חודשי", icon: BarChart3 },
   { id: 'quarterly', label: "דוח רבעוני מתקדם", icon: TrendingUp },
   { id: 'raw', label: "תנועות גולמיות", icon: Database }
 ];
@@ -88,7 +89,8 @@ function App() {
           <div className="bg-white rounded-xl shadow-lg border border-gray-200" style={{ borderRight: `4px solid ${LITAY.primary}` }}>
             <div className="p-6">
               {selectedTab === 'hierarchical' && <HierarchicalReport />}
-              {selectedTab === 'pivot' && <PivotContent />}
+              {/* ✅ החלפנו את PivotContent בקומפוננטה האמיתית! */}
+              {selectedTab === 'pivot' && <MonthlyReport />}
               {selectedTab === 'quarterly' && <QuarterlyContent />}
               {selectedTab === 'raw' && <RawDataContent />}
             </div>
@@ -220,40 +222,6 @@ function App() {
           </div>
         </div>
       </footer>
-    </div>
-  );
-}
-
-// Pivot Content
-function PivotContent() {
-  return (
-    <div className="overflow-x-auto rounded-xl border border-gray-200">
-      <table className="w-full">
-        <thead>
-          <tr style={{ backgroundColor: LITAY.neutralBg }}>
-            <th className="px-4 py-4 text-right font-bold" style={{ color: LITAY.primaryDark }}>קטגוריה</th>
-            <th className="px-4 py-4 text-center font-bold" style={{ color: LITAY.primaryDark }}>ינואר</th>
-            <th className="px-4 py-4 text-center font-bold" style={{ color: LITAY.primaryDark }}>פברואר</th>
-            <th className="px-4 py-4 text-center font-bold" style={{ color: LITAY.primaryDark }}>מרץ</th>
-            <th className="px-4 py-4 text-center font-bold" style={{ color: LITAY.primaryDark }}>אפריל</th>
-            <th className="px-4 py-4 text-center font-bold" style={{ color: LITAY.primaryDark }}>מאי</th>
-            <th className="px-4 py-4 text-center font-bold" style={{ color: LITAY.primary }}>סה״כ</th>
-          </tr>
-        </thead>
-        <tbody>
-          {['הכנסות', 'הוצאות תפעול', 'הוצאות מימון', 'רווח נקי'].map((cat, i) => (
-            <tr key={i} className="border-b hover:bg-gray-50 transition-colors" style={{ borderColor: LITAY.neutralLight }}>
-              <td className="px-4 py-4 font-semibold" style={{ color: LITAY.neutralDark }}>{cat}</td>
-              <td className="px-4 py-4 text-center" style={{ fontFamily: 'Rubik, Arial', color: LITAY.neutralDark }}>₪{(Math.random() * 500000).toFixed(0)}</td>
-              <td className="px-4 py-4 text-center" style={{ fontFamily: 'Rubik, Arial', color: LITAY.neutralDark }}>₪{(Math.random() * 500000).toFixed(0)}</td>
-              <td className="px-4 py-4 text-center" style={{ fontFamily: 'Rubik, Arial', color: LITAY.neutralDark }}>₪{(Math.random() * 500000).toFixed(0)}</td>
-              <td className="px-4 py-4 text-center" style={{ fontFamily: 'Rubik, Arial', color: LITAY.neutralDark }}>₪{(Math.random() * 500000).toFixed(0)}</td>
-              <td className="px-4 py-4 text-center" style={{ fontFamily: 'Rubik, Arial', color: LITAY.neutralDark }}>₪{(Math.random() * 500000).toFixed(0)}</td>
-              <td className="px-4 py-4 text-center font-bold" style={{ fontFamily: 'Rubik, Arial', color: LITAY.primary }}>₪{(Math.random() * 2500000).toFixed(0)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </div>
   );
 }

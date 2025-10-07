@@ -90,7 +90,7 @@ const HierarchicalReport: React.FC = () => {
             setLoading(false);
           },
         });
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error loading transactions:', error);
         setLoading(false);
       }
@@ -124,7 +124,7 @@ const HierarchicalReport: React.FC = () => {
           if (parts.length === 3) {
             return parseInt(parts[1]) === month;
           }
-        } catch (e) {
+        } catch (e: any) {
           return false;
         }
         return false;
@@ -194,7 +194,7 @@ const HierarchicalReport: React.FC = () => {
         const year = lastDate.year.toString().substring(2); // 2 ספרות אחרונות
         
         formattedDateRange = `${String(firstMonth).padStart(2, '0')}-${String(lastMonth).padStart(2, '0')}.${year}`;
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error formatting date range:', error);
       }
     }
@@ -378,7 +378,7 @@ const HierarchicalReport: React.FC = () => {
   const { categories, totals, dateRange } = hierarchicalData;
 
   return (
-    <div className="w-full bg-white rounded-lg shadow-sm p-4">
+    <div className="w-full bg-white rounded-lg shadow-sm p-4 mb-6">
       {/* כותרת */}
       <div className="mb-3 border-b border-gray-200 pb-2">
         <h1 className="text-2xl font-bold text-gray-800">דוח רווח והפסד מצטבר</h1>
@@ -457,9 +457,9 @@ const HierarchicalReport: React.FC = () => {
       </div>
 
       {/* תצוגה דו-עמודתית */}
-      <div className="grid grid-cols-[55%_45%] gap-4">
+      <div className="grid grid-cols-[55%_45%] gap-4" style={{ maxHeight: '70vh' }}>
         {/* עמודה שמאל - הדוח ההיררכי */}
-        <div className="space-y-1.5 overflow-y-auto" style={{ maxHeight: '65vh' }}>
+        <div className="space-y-1.5 overflow-y-auto" style={{ maxHeight: '55vh' }}>
           {/* הכנסות */}
           {categories.filter(c => c.type === 'income').map((category) => (
             <div key={category.code} className="border border-gray-200 rounded-md overflow-hidden bg-white">
@@ -816,7 +816,7 @@ const HierarchicalReport: React.FC = () => {
         </div>
 
         {/* עמודה ימין - גרפים בלבד */}
-        <div className="space-y-3">
+        <div className="space-y-3 overflow-y-auto" style={{ maxHeight: '55vh' }}>
           {/* גרף עמודות חודשי */}
           <div className="bg-white border border-gray-200 rounded-lg p-2.5 shadow-sm">
             <div className="flex items-center gap-1.5 mb-1">
