@@ -1,18 +1,18 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ChevronRight, ChevronDown, TrendingUp, TrendingDown } from 'lucide-react';
+import { Plus, Minus, TrendingUp, Package2, Building2, Landmark, Save, Edit3, BarChart3, TrendingDown } from 'lucide-react';
 import Papa from 'papaparse';
-import groupBy from 'lodash/groupBy';
-import sumBy from 'lodash/sumBy';
+import _ from 'lodash';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface Transaction {
+  sortCode: number | null;
+  sortCodeName: string;
   accountKey: number;
   accountName: string;
   amount: number;
   details: string;
   date: string;
-  valueDate: string;
   counterAccountName: string;
-  debitCredit: string;
 }
 
 interface AccountData {
@@ -29,11 +29,28 @@ interface SubCategoryData {
 }
 
 interface CategoryData {
+  code: number | string;
   name: string;
   total: number;
-  type: 'income' | 'expense';
-  subCategories: SubCategoryData[];
+  type: 'income' | 'cogs' | 'operating' | 'financial';
+  subCategories?: SubCategoryData[];
+  accounts?: AccountData[];
 }
+
+interface MonthlyData {
+  month: string;
+  revenue: number;
+  cogs: number;
+  operating: number;
+  financial: number;
+  marketing: number;
+  grossProfit: number;
+  operatingProfit: number;
+  netProfit: number;
+}
+
+const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+const MONTH_NAMES = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'];
 
 const HierarchicalReport: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -41,9 +58,14 @@ const HierarchicalReport: React.FC = () => {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [expandedSubCategories, setExpandedSubCategories] = useState<Set<string>>(new Set());
   const [expandedAccounts, setExpandedAccounts] = useState<Set<string>>(new Set());
-  const [selectedTransactions, setSelectedTransactions] = useState<Transaction[] | null>(null);
+  
+  const [openingInventory, setOpeningInventory] = useState<number>(
+    parseFloat(localStorage.getItem('openingInventory') || '0')
+  );
+  const [closingInventory, setClosingInventory] = useState<number>(
+    parseFloat(localStorage.getItem('closingInventory') || '0')
+  );
 
-  // טעינת נתונים מ-TRANSACTION.csv
   useEffect(() => {
     const loadTransactions = async () => {
       try {
@@ -55,16 +77,16 @@ const HierarchicalReport: React.FC = () => {
           skipEmptyLines: true,
           complete: (results: Papa.ParseResult<any>) => {
             const parsed: Transaction[] = results.data.map((row: any) => ({
+              sortCode: row['קוד מיון'] ? parseInt(row['קוד מיון']) : null,
+              sortCodeName: row['שם קוד מיון'] || '',
               accountKey: parseInt(row['מפתח חשבון']) || 0,
               accountName: row['שם חשבון'] || '',
               amount: parseFloat(row['חובה / זכות (שקל)']?.replace(/,/g, '') || '0'),
               details: row['פרטים'] || '',
-              date: row['תאריך 3'] || '',
-              valueDate: row['ת.ערך'] || '',
+              date: row['ת.אסמכ'] || '',
               counterAccountName: row['שם חשבון נגדי'] || '',
-              debitCredit: row['חובה / זכות (שקל)'] || '',
             }));
-            setTransactions(parsed);
+            setTransactions(parsed.filter(tx => tx.accountKey !== 0));
             setLoading(false);
           },
         });
@@ -77,115 +99,241 @@ const HierarchicalReport: React.FC = () => {
     loadTransactions();
   }, []);
 
-  // מבנה הדוח ההיררכי
-  const hierarchicalData = useMemo(() => {
+  const saveInventory = () => {
+    localStorage.setItem('openingInventory', openingInventory.toString());
+    localStorage.setItem('closingInventory', closingInventory.toString());
+    alert('המלאי נשמר בהצלחה!');
+  };
+
+  // חישוב נתונים חודשיים
+  const monthlyData = useMemo((): MonthlyData[] => {
     if (!transactions.length) return [];
 
-    // קטגוריות ראשיות - נתחיל בגרסה פשוטה
-    const categories: CategoryData[] = [
+    // מציאת כל החודשים הייחודיים בפועל מהנתונים
+    const uniqueMonths = Array.from(new Set(
+      transactions
+        .filter(tx => tx.date && tx.date.split('/').length === 3)
+        .map(tx => parseInt(tx.date.split('/')[1]))
+    )).sort((a, b) => a - b);
+    
+    return uniqueMonths.map(month => {
+      const monthTxs = transactions.filter(tx => {
+        if (!tx.date) return false;
+        try {
+          const parts = tx.date.split('/');
+          if (parts.length === 3) {
+            return parseInt(parts[1]) === month;
+          }
+        } catch (e) {
+          return false;
+        }
+        return false;
+      });
+
+      const revenue = _.sumBy(monthTxs.filter(tx => tx.sortCode === 600), 'amount');
+      const cogs = _.sumBy(monthTxs.filter(tx => tx.sortCode === 800), 'amount');
+      const operating = _.sumBy(monthTxs.filter(tx => [801, 806, 802, 805, 804, 811].includes(tx.sortCode || 0)), 'amount');
+      const financial = _.sumBy(monthTxs.filter(tx => [813, 990, 991].includes(tx.sortCode || 0)), 'amount');
+      
+      // חישוב הוצאות שיווק (805 + 804)
+      const marketing = _.sumBy(monthTxs.filter(tx => [805, 804].includes(tx.sortCode || 0)), 'amount');
+
+      return {
+        month: MONTH_NAMES[month - 1],
+        revenue,
+        cogs,
+        operating,
+        financial,
+        marketing,
+        grossProfit: revenue + cogs,
+        operatingProfit: revenue + cogs + operating,
+        netProfit: revenue + cogs + operating + financial,
+      };
+    });
+  }, [transactions]);
+
+  const hierarchicalData = useMemo(() => {
+    if (!transactions.length) return { 
+      categories: [], 
+      totals: { revenue: 0, cogs: 0, operating: 0, financial: 0, grossProfit: 0, operatingProfit: 0, netProfit: 0 },
+      dateRange: '01-12.25'
+    };
+
+    // משתמש בכל התנועות ללא סינון
+    const filteredTransactions = transactions;
+
+    // חישוב טווח תאריכים בפועל
+    const validDates = filteredTransactions
+      .map(tx => tx.date)
+      .filter(d => d && d.split('/').length === 3)
+      .map(dateStr => {
+        const parts = dateStr.split('/');
+        return {
+          str: dateStr,
+          day: parseInt(parts[0]),
+          month: parseInt(parts[1]),
+          year: parseInt(parts[2])
+        };
+      })
+      .sort((a, b) => {
+        // מיון לפי שנה, אחר כך חודש, אחר כך יום
+        if (a.year !== b.year) return a.year - b.year;
+        if (a.month !== b.month) return a.month - b.month;
+        return a.day - b.day;
+      });
+    
+    let formattedDateRange = '01-12.25';
+    
+    if (validDates.length > 0) {
+      try {
+        const firstDate = validDates[0];
+        const lastDate = validDates[validDates.length - 1];
+        
+        const firstMonth = firstDate.month;
+        const lastMonth = lastDate.month;
+        const year = lastDate.year.toString().substring(2); // 2 ספרות אחרונות
+        
+        formattedDateRange = `${String(firstMonth).padStart(2, '0')}-${String(lastMonth).padStart(2, '0')}.${year}`;
+      } catch (error) {
+        console.error('Error formatting date range:', error);
+      }
+    }
+
+    // הכנסות
+    const revenue600 = filteredTransactions.filter(tx => tx.sortCode === 600);
+    const revenueWebsite = revenue600.filter(tx => tx.accountKey < 40020);
+    const revenueSuperpharm = revenue600.filter(tx => tx.accountKey >= 40020);
+
+    const revenueCategory: CategoryData = {
+      code: 600,
+      name: 'הכנסות',
+      type: 'income',
+      total: _.sumBy(revenue600, 'amount'),
+      subCategories: [
+        {
+          name: 'הכנסות מאתר ולקוחות',
+          total: _.sumBy(revenueWebsite, 'amount'),
+          accounts: Object.entries(_.groupBy(revenueWebsite, 'accountKey')).map(([key, txs]) => ({
+            accountKey: parseInt(key),
+            accountName: (txs as Transaction[])[0].accountName,
+            total: _.sumBy(txs as Transaction[], 'amount'),
+            transactions: txs as Transaction[],
+          })),
+        },
+        {
+          name: 'הכנסות מסופרפארם',
+          total: _.sumBy(revenueSuperpharm, 'amount'),
+          accounts: Object.entries(_.groupBy(revenueSuperpharm, 'accountKey')).map(([key, txs]) => ({
+            accountKey: parseInt(key),
+            accountName: (txs as Transaction[])[0].accountName,
+            total: _.sumBy(txs as Transaction[], 'amount'),
+            transactions: txs as Transaction[],
+          })),
+        },
+      ],
+    };
+
+    // עלות המכר
+    const cogs800 = filteredTransactions.filter(tx => tx.sortCode === 800);
+    const purchases = _.sumBy(cogs800, 'amount');
+    const actualCOGS = openingInventory + purchases - closingInventory;
+
+    const cogsCategory: CategoryData = {
+      code: 800,
+      name: 'עלות המכר',
+      type: 'cogs',
+      total: actualCOGS,
+      accounts: Object.entries(_.groupBy(cogs800, 'accountKey')).map(([key, txs]) => ({
+        accountKey: parseInt(key),
+        accountName: (txs as Transaction[])[0].accountName,
+        total: _.sumBy(txs as Transaction[], 'amount'),
+        transactions: txs as Transaction[],
+      })),
+    };
+
+    // הוצאות תפעול
+    const operatingCodes = [801, 806, 802, 805, 804, 811];
+    const operatingCategories: CategoryData[] = operatingCodes.map(code => {
+      const txs = filteredTransactions.filter(tx => tx.sortCode === code);
+      return {
+        code,
+        name: txs[0]?.sortCodeName || `קוד ${code}`,
+        type: 'operating',
+        total: _.sumBy(txs, 'amount'),
+        accounts: Object.entries(_.groupBy(txs, 'accountKey')).map(([key, accounts]) => ({
+          accountKey: parseInt(key),
+          accountName: (accounts as Transaction[])[0].accountName,
+          total: _.sumBy(accounts as Transaction[], 'amount'),
+          transactions: accounts as Transaction[],
+        })),
+      };
+    });
+
+    // הוצאות מימון
+    const financial813 = filteredTransactions.filter(tx => tx.sortCode === 813);
+    const financial990 = filteredTransactions.filter(tx => tx.sortCode === 990);
+    const financialBankFees = [...financial813, ...financial990];
+    const financial991 = filteredTransactions.filter(tx => tx.sortCode === 991);
+
+    const financialCategories: CategoryData[] = [
       {
-        name: 'הכנסות',
-        type: 'income',
-        total: 0,
-        subCategories: [
-          { name: 'מכירות', total: 0, accounts: [] },
-          { name: 'שירותים', total: 0, accounts: [] },
-          { name: 'הכנסות אחרות', total: 0, accounts: [] },
-        ],
+        code: '813+990',
+        name: 'עמלות בנקים וסליקה',
+        type: 'financial',
+        total: _.sumBy(financialBankFees, 'amount'),
+        accounts: Object.entries(_.groupBy(financialBankFees, 'accountKey')).map(([key, txs]) => ({
+          accountKey: parseInt(key),
+          accountName: (txs as Transaction[])[0].accountName,
+          total: _.sumBy(txs as Transaction[], 'amount'),
+          transactions: txs as Transaction[],
+        })),
       },
       {
-        name: 'עלות המכר',
-        type: 'expense',
-        total: 0,
-        subCategories: [
-          { name: 'רכש סחורה', total: 0, accounts: [] },
-          { name: 'עלויות ייצור', total: 0, accounts: [] },
-        ],
-      },
-      {
-        name: 'הוצאות תפעול',
-        type: 'expense',
-        total: 0,
-        subCategories: [
-          { name: 'שכר עבודה', total: 0, accounts: [] },
-          { name: 'שכר דירה', total: 0, accounts: [] },
-          { name: 'שיווק ופרסום', total: 0, accounts: [] },
-          { name: 'הוצאות משרד', total: 0, accounts: [] },
-        ],
-      },
-      {
-        name: 'הוצאות מימון',
-        type: 'expense',
-        total: 0,
-        subCategories: [
-          { name: 'ריבית והוצאות בנק', total: 0, accounts: [] },
-          { name: 'הפרשי שער', total: 0, accounts: [] },
-        ],
+        code: 991,
+        name: 'ריבית החזר הלוואה',
+        type: 'financial',
+        total: _.sumBy(financial991, 'amount'),
+        accounts: Object.entries(_.groupBy(financial991, 'accountKey')).map(([key, txs]) => ({
+          accountKey: parseInt(key),
+          accountName: (txs as Transaction[])[0].accountName,
+          total: _.sumBy(txs as Transaction[], 'amount'),
+          transactions: txs as Transaction[],
+        })),
       },
     ];
 
-    // סיווג חשבונות לפי טווח מפתח חשבון
-    const classifyAccount = (accountKey: number): { categoryIndex: number; subCategoryIndex: number } => {
-      if (accountKey >= 4000 && accountKey < 4100) return { categoryIndex: 0, subCategoryIndex: 0 }; // מכירות
-      if (accountKey >= 4100 && accountKey < 4200) return { categoryIndex: 0, subCategoryIndex: 1 }; // שירותים
-      if (accountKey >= 4200 && accountKey < 5000) return { categoryIndex: 0, subCategoryIndex: 2 }; // הכנסות אחרות
-      if (accountKey >= 5000 && accountKey < 5100) return { categoryIndex: 1, subCategoryIndex: 0 }; // רכש סחורה
-      if (accountKey >= 5100 && accountKey < 6000) return { categoryIndex: 1, subCategoryIndex: 1 }; // עלויות ייצור
-      if (accountKey >= 6000 && accountKey < 6100) return { categoryIndex: 2, subCategoryIndex: 0 }; // שכר עבודה
-      if (accountKey >= 6100 && accountKey < 6200) return { categoryIndex: 2, subCategoryIndex: 1 }; // שכר דירה
-      if (accountKey >= 6200 && accountKey < 6300) return { categoryIndex: 2, subCategoryIndex: 2 }; // שיווק
-      if (accountKey >= 6300 && accountKey < 7000) return { categoryIndex: 2, subCategoryIndex: 3 }; // הוצאות משרד
-      if (accountKey >= 7000 && accountKey < 8000) return { categoryIndex: 3, subCategoryIndex: 0 }; // מימון
-      return { categoryIndex: 2, subCategoryIndex: 3 }; // ברירת מחדל
+    const totalRevenue = revenueCategory.total;
+    const totalCOGS = cogsCategory.total;
+    const totalOperating = _.sumBy(operatingCategories, 'total');
+    const totalFinancial = _.sumBy(financialCategories, 'total');
+
+    return {
+      categories: [revenueCategory, cogsCategory, ...operatingCategories, ...financialCategories],
+      totals: {
+        revenue: totalRevenue,
+        cogs: totalCOGS,
+        operating: totalOperating,
+        financial: totalFinancial,
+        grossProfit: totalRevenue + totalCOGS,
+        operatingProfit: totalRevenue + totalCOGS + totalOperating,
+        netProfit: totalRevenue + totalCOGS + totalOperating + totalFinancial,
+      },
+      dateRange: formattedDateRange
     };
+  }, [transactions, openingInventory, closingInventory]);
 
-    // קיבוץ טרנזקציות לפי חשבון
-    const groupedByAccount = groupBy(transactions, (tx: Transaction) => tx.accountKey);
-
-    Object.keys(groupedByAccount).forEach((accountKey) => {
-      const txs = groupedByAccount[accountKey] as Transaction[];
-      const key = parseInt(accountKey);
-      if (key === 0 || !txs.length) return;
-
-      const { categoryIndex, subCategoryIndex } = classifyAccount(key);
-      const total = sumBy(txs, (tx: Transaction) => tx.amount);
-
-      const accountData: AccountData = {
-        accountKey: key,
-        accountName: txs[0].accountName,
-        total,
-        transactions: txs,
-      };
-
-      categories[categoryIndex].subCategories[subCategoryIndex].accounts.push(accountData);
-      categories[categoryIndex].subCategories[subCategoryIndex].total += total;
-      categories[categoryIndex].total += total;
-    });
-
-    return categories;
-  }, [transactions]);
-
-  // פונקציות toggle
-  const toggleCategory = (categoryName: string) => {
+  const toggleCategory = (code: string) => {
     setExpandedCategories(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(categoryName)) {
-        newSet.delete(categoryName);
-      } else {
-        newSet.add(categoryName);
-      }
+      newSet.has(code) ? newSet.delete(code) : newSet.add(code);
       return newSet;
     });
   };
 
-  const toggleSubCategory = (subCategoryName: string) => {
+  const toggleSubCategory = (key: string) => {
     setExpandedSubCategories(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(subCategoryName)) {
-        newSet.delete(subCategoryName);
-      } else {
-        newSet.add(subCategoryName);
-      }
+      newSet.has(key) ? newSet.delete(key) : newSet.add(key);
       return newSet;
     });
   };
@@ -194,23 +342,29 @@ const HierarchicalReport: React.FC = () => {
     setExpandedAccounts(prev => {
       const newSet = new Set(prev);
       const key = accountKey.toString();
-      if (newSet.has(key)) {
-        newSet.delete(key);
-      } else {
-        newSet.add(key);
-      }
+      newSet.has(key) ? newSet.delete(key) : newSet.add(key);
       return newSet;
     });
   };
 
-  // פורמט מספר לשקלים
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('he-IL', {
+    const isNegative = amount < 0;
+    const absoluteAmount = Math.abs(amount);
+    
+    const formatted = new Intl.NumberFormat('he-IL', {
       style: 'currency',
       currency: 'ILS',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
-    }).format(Math.abs(amount));
+    }).format(absoluteAmount);
+    
+    // אם המספר שלילי, נציג אותו בסוגריים
+    return isNegative ? `(${formatted})` : formatted;
+  };
+
+  const formatPercent = (value: number, total: number) => {
+    if (total === 0) return '0.0%';
+    return ((value / total) * 100).toFixed(1) + '%';
   };
 
   if (loading) {
@@ -221,128 +375,515 @@ const HierarchicalReport: React.FC = () => {
     );
   }
 
+  const { categories, totals, dateRange } = hierarchicalData;
+
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6">
-      <h2 className="text-2xl font-bold mb-6 text-gray-800">דוח רווח והפסד היררכי</h2>
-      
-      <div className="space-y-2">
-        {hierarchicalData.map((category) => (
-          <div key={category.name} className="border border-gray-200 rounded-lg overflow-hidden">
-            {/* רמה 1: קטגוריה ראשית */}
-            <button
-              onClick={() => toggleCategory(category.name)}
-              className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-150 transition-all duration-200"
-            >
-              <div className="flex items-center gap-3">
-                {expandedCategories.has(category.name) ? (
-                  <ChevronDown className="w-5 h-5 text-blue-600 transition-transform duration-200" />
-                ) : (
-                  <ChevronRight className="w-5 h-5 text-blue-600 transition-transform duration-200" />
-                )}
-                <span className="font-bold text-lg text-gray-800">{category.name}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className={`font-bold text-lg ${category.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
-                  {formatCurrency(category.total)}
-                </span>
-                {category.type === 'income' ? (
-                  <TrendingUp className="w-5 h-5 text-green-600" />
-                ) : (
-                  <TrendingDown className="w-5 h-5 text-red-600" />
-                )}
-              </div>
-            </button>
+    <div className="w-full bg-white rounded-lg shadow-sm p-4">
+      {/* כותרת */}
+      <div className="mb-3 border-b border-gray-200 pb-2">
+        <h1 className="text-2xl font-bold text-gray-800">דוח רווח והפסד מצטבר</h1>
+        <p className="text-sm text-gray-600 mt-1">תקופה: {dateRange}</p>
+      </div>
 
-            {/* רמה 2: תת-קטגוריות */}
-            {expandedCategories.has(category.name) && (
-              <div className="bg-gray-50">
-                {category.subCategories.map((subCategory) => (
-                  <div key={subCategory.name} className="border-t border-gray-200">
-                    <button
-                      onClick={() => toggleSubCategory(`${category.name}-${subCategory.name}`)}
-                      className="w-full flex items-center justify-between p-3 pl-12 hover:bg-gray-100 transition-colors duration-150"
-                    >
-                      <div className="flex items-center gap-3">
-                        {expandedSubCategories.has(`${category.name}-${subCategory.name}`) ? (
-                          <ChevronDown className="w-4 h-4 text-gray-600" />
-                        ) : (
-                          <ChevronRight className="w-4 h-4 text-gray-600" />
-                        )}
-                        <span className="font-semibold text-gray-700">{subCategory.name}</span>
-                      </div>
-                      <span className="font-semibold text-gray-700">
-                        {formatCurrency(subCategory.total)}
-                      </span>
-                    </button>
-
-                    {/* רמה 3: חשבונות */}
-                    {expandedSubCategories.has(`${category.name}-${subCategory.name}`) && (
-                      <div className="bg-white">
-                        {subCategory.accounts.map((account) => (
-                          <div key={account.accountKey} className="border-t border-gray-100">
-                            <button
-                              onClick={() => toggleAccount(account.accountKey)}
-                              className="w-full flex items-center justify-between p-3 pl-20 hover:bg-blue-50 transition-colors duration-150"
-                            >
-                              <div className="flex items-center gap-3">
-                                {expandedAccounts.has(account.accountKey.toString()) ? (
-                                  <ChevronDown className="w-4 h-4 text-blue-500" />
-                                ) : (
-                                  <ChevronRight className="w-4 h-4 text-blue-500" />
-                                )}
-                                <span className="text-gray-600">
-                                  {account.accountKey} - {account.accountName}
-                                </span>
-                              </div>
-                              <span className="text-gray-700">
-                                {formatCurrency(account.total)}
-                              </span>
-                            </button>
-
-                            {/* רמה 4: טרנזקציות */}
-                            {expandedAccounts.has(account.accountKey.toString()) && (
-                              <div className="bg-gray-50 p-4 pl-28">
-                                <table className="w-full text-sm">
-                                  <thead className="bg-gray-100">
-                                    <tr>
-                                      <th className="p-2 text-right">תאריך</th>
-                                      <th className="p-2 text-right">חשבון נגדי</th>
-                                      <th className="p-2 text-right">פרטים</th>
-                                      <th className="p-2 text-left">סכום</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {account.transactions.slice(0, 10).map((tx: Transaction, idx: number) => (
-                                      <tr key={idx} className="border-t border-gray-200 hover:bg-white">
-                                        <td className="p-2 text-right text-gray-600">{tx.date}</td>
-                                        <td className="p-2 text-right text-gray-600">{tx.counterAccountName}</td>
-                                        <td className="p-2 text-right text-gray-700">{tx.details}</td>
-                                        <td className="p-2 text-left font-medium text-gray-800">
-                                          {formatCurrency(tx.amount)}
-                                        </td>
-                                      </tr>
-                                    ))}
-                                    {account.transactions.length > 10 && (
-                                      <tr className="border-t border-gray-200">
-                                        <td colSpan={4} className="p-2 text-center text-gray-500 text-xs">
-                                          ועוד {account.transactions.length - 10} טרנזקציות...
-                                        </td>
-                                      </tr>
-                                    )}
-                                  </tbody>
-                                </table>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+      {/* כרטיסי סיכום - קומפקטיים */}
+      <div className="grid grid-cols-4 gap-3 mb-4">
+        {/* כרטיס הכנסות */}
+        <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-300 rounded-lg p-2.5 shadow-sm">
+          <div className="flex items-center gap-1.5 mb-1">
+            <div className="bg-green-500 rounded-full p-1">
+              <TrendingUp className="w-3.5 h-3.5 text-white" />
+            </div>
+            <span className="text-xs font-medium text-gray-700">סך הכנסות</span>
           </div>
-        ))}
+          <div className="text-lg font-bold text-green-700 mb-0.5">
+            {formatCurrency(totals.revenue)}
+          </div>
+          <div className="text-xs text-green-600">
+            <span className="bg-green-100 px-1.5 py-0.5 rounded text-xs">100%</span>
+          </div>
+        </div>
+
+        {/* כרטיס הוצאות - אפור */}
+        <div className="bg-gradient-to-br from-gray-50 to-slate-50 border border-gray-300 rounded-lg p-2.5 shadow-sm">
+          <div className="flex items-center gap-1.5 mb-1">
+            <div className="bg-gray-500 rounded-full p-1">
+              <TrendingDown className="w-3.5 h-3.5 text-white" />
+            </div>
+            <span className="text-xs font-medium text-gray-700">סך הוצאות</span>
+          </div>
+          <div className="text-lg font-bold text-gray-700 mb-0.5">
+            {formatCurrency(totals.cogs + totals.operating + totals.financial)}
+          </div>
+          <div className="text-xs text-gray-600">
+            <span className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">
+              {formatPercent(Math.abs(totals.cogs + totals.operating + totals.financial), totals.revenue)}
+            </span>
+          </div>
+        </div>
+
+        {/* כרטיס רווח נקי */}
+        <div className="bg-gradient-to-br from-teal-50 to-cyan-50 border border-teal-400 rounded-lg p-2.5 shadow-sm">
+          <div className="flex items-center gap-1.5 mb-1">
+            <div className="bg-teal-500 rounded-full p-1">
+              <span className="text-white text-sm font-bold">💰</span>
+            </div>
+            <span className="text-xs font-medium text-gray-700">רווח נקי</span>
+          </div>
+          <div className="text-lg font-bold text-teal-700 mb-0.5">
+            {formatCurrency(totals.netProfit)}
+          </div>
+          <div className="text-xs text-teal-600">
+            <span className="bg-teal-100 px-1.5 py-0.5 rounded text-xs">
+              {formatPercent(totals.netProfit, totals.revenue)}
+            </span>
+          </div>
+        </div>
+
+        {/* כרטיס אחוז רווחיות */}
+        <div className="bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-400 rounded-lg p-2.5 shadow-sm">
+          <div className="flex items-center gap-1.5 mb-1">
+            <div className="bg-orange-500 rounded-full p-1">
+              <span className="text-white text-sm font-bold">%</span>
+            </div>
+            <span className="text-xs font-medium text-gray-700">% רווחיות</span>
+          </div>
+          <div className="text-2xl font-bold text-orange-700 mb-0.5">
+            {formatPercent(totals.netProfit, totals.revenue)}
+          </div>
+          <div className="text-xs text-orange-600">
+            מסך ההכנסות
+          </div>
+        </div>
+      </div>
+
+      {/* תצוגה דו-עמודתית */}
+      <div className="grid grid-cols-[55%_45%] gap-4">
+        {/* עמודה שמאל - הדוח ההיררכי */}
+        <div className="space-y-1.5 overflow-y-auto" style={{ maxHeight: '65vh' }}>
+          {/* הכנסות */}
+          {categories.filter(c => c.type === 'income').map((category) => (
+            <div key={category.code} className="border border-gray-200 rounded-md overflow-hidden bg-white">
+              <button
+                onClick={() => toggleCategory(category.code.toString())}
+                className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  {expandedCategories.has(category.code.toString()) ? (
+                    <Minus className="w-5 h-5 text-gray-700" />
+                  ) : (
+                    <Plus className="w-5 h-5 text-gray-700" />
+                  )}
+                  <TrendingUp className="w-5 h-5 text-green-600" />
+                  <span className="font-semibold text-gray-800">{category.name}</span>
+                </div>
+                <span className="font-semibold text-green-600">{formatCurrency(category.total)}</span>
+              </button>
+
+              {expandedCategories.has(category.code.toString()) && category.subCategories && (
+                <div className="bg-gray-50">
+                  {category.subCategories.map((sub, idx) => (
+                    <div key={idx} className="border-t border-gray-200">
+                      <button
+                        onClick={() => toggleSubCategory(`${category.code}-${idx}`)}
+                        className="w-full flex items-center justify-between p-3 pl-12 hover:bg-white transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          {expandedSubCategories.has(`${category.code}-${idx}`) ? (
+                            <Minus className="w-4 h-4 text-gray-600" />
+                          ) : (
+                            <Plus className="w-4 h-4 text-gray-600" />
+                          )}
+                          <span className="text-gray-700">{sub.name}</span>
+                        </div>
+                        <span className="text-gray-700">{formatCurrency(sub.total)}</span>
+                      </button>
+
+                      {expandedSubCategories.has(`${category.code}-${idx}`) && (
+                        <div className="bg-white">
+                          {sub.accounts.filter(account => account.total !== 0).map((account) => (
+                            <div key={account.accountKey} className="border-t border-gray-100">
+                              <button
+                                onClick={() => toggleAccount(account.accountKey)}
+                                className="w-full flex items-center justify-between p-2 pl-20 hover:bg-gray-50 transition-colors text-sm"
+                              >
+                                <div className="flex items-center gap-2">
+                                  {expandedAccounts.has(account.accountKey.toString()) ? (
+                                    <Minus className="w-3 h-3 text-gray-500" />
+                                  ) : (
+                                    <Plus className="w-3 h-3 text-gray-500" />
+                                  )}
+                                  <span className="text-gray-600">{account.accountKey} - {account.accountName}</span>
+                                </div>
+                                <span className="text-gray-700">{formatCurrency(account.total)}</span>
+                              </button>
+
+                              {expandedAccounts.has(account.accountKey.toString()) && (
+                                <div className="bg-gray-50 p-2 pl-24">
+                                  <table className="w-full text-xs">
+                                    <thead className="bg-gray-100">
+                                      <tr>
+                                        <th className="p-1 text-right text-gray-700">תאריך</th>
+                                        <th className="p-1 text-right text-gray-700">פרטים</th>
+                                        <th className="p-1 text-left text-gray-700">סכום</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {account.transactions.map((tx, i) => (
+                                        <tr key={i} className="border-t border-gray-100 hover:bg-white">
+                                          <td className="p-1 text-right text-gray-600 text-xs">{tx.date}</td>
+                                          <td className="p-1 text-right text-gray-700 text-xs truncate max-w-[200px]">{tx.details}</td>
+                                          <td className="p-1 text-left text-xs">{formatCurrency(tx.amount)}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                          <div className="bg-gray-100 px-4 py-2 flex justify-between">
+                            <span className="font-semibold text-gray-700">סה"כ {sub.name}</span>
+                            <span className="font-semibold text-gray-800">{formatCurrency(sub.total)}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  <div className="bg-gray-200 px-4 py-3 flex justify-between">
+                    <span className="font-bold text-gray-800">סה"כ {category.name}</span>
+                    <span className="font-bold text-green-700 text-lg">{formatCurrency(category.total)}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+
+          {/* עלות המכר */}
+          {categories.filter(c => c.type === 'cogs').map((category) => (
+            <div key={category.code} className="border border-gray-200 rounded-md overflow-hidden bg-white">
+              <button
+                onClick={() => toggleCategory(category.code.toString())}
+                className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  {expandedCategories.has(category.code.toString()) ? (
+                    <Minus className="w-5 h-5 text-gray-700" />
+                  ) : (
+                    <Plus className="w-5 h-5 text-gray-700" />
+                  )}
+                  <Package2 className="w-5 h-5 text-orange-600" />
+                  <span className="font-semibold text-gray-800">{category.name}</span>
+                </div>
+                <span className="font-semibold text-gray-600">{formatCurrency(category.total)}</span>
+              </button>
+
+              {expandedCategories.has(category.code.toString()) && (
+                <div className="bg-gray-50 p-4">
+                  <div className="bg-white border border-gray-300 rounded-md p-3 mb-2 flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <Edit3 className="w-4 h-4 text-gray-500" />
+                      <span className="text-gray-700 font-medium">מלאי פתיחה</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        value={openingInventory}
+                        onChange={(e) => setOpeningInventory(parseFloat(e.target.value) || 0)}
+                        className="w-32 px-2 py-1 border border-gray-300 rounded text-right text-sm"
+                      />
+                      <span className="text-gray-700">{formatCurrency(openingInventory)}</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-md border border-gray-200 mb-2">
+                    {(category.accounts || []).filter(account => account.total !== 0).map((account) => (
+                      <div key={account.accountKey} className="border-b border-gray-100 last:border-b-0 p-2">
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-gray-600">{account.accountKey} - {account.accountName}</span>
+                          <span className="text-gray-700 font-medium">{formatCurrency(account.total)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="bg-white border border-gray-300 rounded-md p-3 mb-2 flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <Edit3 className="w-4 h-4 text-gray-500" />
+                      <span className="text-gray-700 font-medium">מלאי סגירה</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        value={closingInventory}
+                        onChange={(e) => setClosingInventory(parseFloat(e.target.value) || 0)}
+                        className="w-32 px-2 py-1 border border-gray-300 rounded text-right text-sm"
+                      />
+                      <span className="text-gray-700">{formatCurrency(closingInventory)}</span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={saveInventory}
+                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors text-sm mb-3"
+                  >
+                    <Save className="w-4 h-4" />
+                    שמור מלאי
+                  </button>
+
+                  <div className="bg-gray-200 px-4 py-3 flex justify-between rounded-md">
+                    <span className="font-bold text-gray-800">סה"כ עלות המכר</span>
+                    <span className="font-bold text-gray-700 text-lg">{formatCurrency(category.total)}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+
+          {/* רווח גולמי */}
+          <div className="bg-green-50 border border-green-300 rounded-md p-2">
+            <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
+              <span className="font-bold text-sm">💰 רווח גולמי</span>
+              <span className="font-bold text-green-700 text-base">{formatCurrency(totals.grossProfit)}</span>
+              <span className="font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded text-xs">
+                {formatPercent(totals.grossProfit, totals.revenue)}
+              </span>
+            </div>
+          </div>
+
+          {/* הוצאות תפעול */}
+          {categories.filter(c => c.type === 'operating').map((category) => (
+            <div key={category.code} className="border border-gray-200 rounded-md overflow-hidden bg-white">
+              <button
+                onClick={() => toggleCategory(category.code.toString())}
+                className="w-full flex items-center justify-between p-2 bg-gray-50 hover:bg-gray-100 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  {expandedCategories.has(category.code.toString()) ? (
+                    <Minus className="w-4 h-4 text-gray-700" />
+                  ) : (
+                    <Plus className="w-4 h-4 text-gray-700" />
+                  )}
+                  <Building2 className="w-4 h-4 text-slate-600" />
+                  <span className="font-medium text-gray-800 text-sm">{category.name}</span>
+                </div>
+                <span className="font-semibold text-gray-600 text-sm">{formatCurrency(category.total)}</span>
+              </button>
+
+              {expandedCategories.has(category.code.toString()) && (
+                <div className="bg-gray-50">
+                  {(category.accounts || []).filter(account => account.total !== 0).map((account) => (
+                    <div key={account.accountKey} className="border-t border-gray-200">
+                      <button
+                        onClick={() => toggleAccount(account.accountKey)}
+                        className="w-full flex items-center justify-between p-2 pl-8 hover:bg-white transition-colors text-sm"
+                      >
+                        <div className="flex items-center gap-2">
+                          {expandedAccounts.has(account.accountKey.toString()) ? (
+                            <Minus className="w-3 h-3 text-gray-500" />
+                          ) : (
+                            <Plus className="w-3 h-3 text-gray-500" />
+                          )}
+                          <span className="text-gray-600">{account.accountKey} - {account.accountName}</span>
+                        </div>
+                        <span className="text-gray-700">{formatCurrency(account.total)}</span>
+                      </button>
+
+                      {expandedAccounts.has(account.accountKey.toString()) && (
+                        <div className="bg-gray-50 p-2 pl-12">
+                          <table className="w-full text-xs">
+                            <thead className="bg-gray-100">
+                              <tr>
+                                <th className="p-1 text-right text-gray-700">תאריך</th>
+                                <th className="p-1 text-right text-gray-700">פרטים</th>
+                                <th className="p-1 text-left text-gray-700">סכום</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {account.transactions.map((tx, i) => (
+                                <tr key={i} className="border-t border-gray-100 hover:bg-white">
+                                  <td className="p-1 text-right text-gray-600 text-xs">{tx.date}</td>
+                                  <td className="p-1 text-right text-gray-700 text-xs truncate max-w-[200px]">{tx.details}</td>
+                                  <td className="p-1 text-left text-xs">{formatCurrency(tx.amount)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  <div className="bg-gray-200 px-4 py-2 flex justify-between">
+                    <span className="font-bold text-gray-800 text-sm">סה"כ {category.name}</span>
+                    <span className="font-bold text-gray-700">{formatCurrency(category.total)}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+
+          {/* רווח תפעולי */}
+          <div className="bg-emerald-50 border border-emerald-300 rounded-md p-2">
+            <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
+              <span className="font-bold text-sm">💼 רווח תפעולי</span>
+              <span className="font-bold text-emerald-700 text-base">{formatCurrency(totals.operatingProfit)}</span>
+              <span className="font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded text-xs">
+                {formatPercent(totals.operatingProfit, totals.revenue)}
+              </span>
+            </div>
+          </div>
+
+          {/* הוצאות מימון */}
+          {categories.filter(c => c.type === 'financial').map((category) => (
+            <div key={category.code} className="border border-gray-200 rounded-md overflow-hidden bg-white">
+              <button
+                onClick={() => toggleCategory(category.code.toString())}
+                className="w-full flex items-center justify-between p-2 bg-gray-50 hover:bg-gray-100 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  {expandedCategories.has(category.code.toString()) ? (
+                    <Minus className="w-4 h-4 text-gray-700" />
+                  ) : (
+                    <Plus className="w-4 h-4 text-gray-700" />
+                  )}
+                  <Landmark className="w-4 h-4 text-gray-600" />
+                  <span className="font-medium text-gray-800 text-sm">{category.name}</span>
+                </div>
+                <span className="font-semibold text-gray-600 text-sm">{formatCurrency(category.total)}</span>
+              </button>
+
+              {expandedCategories.has(category.code.toString()) && (
+                <div className="bg-gray-50">
+                  {(category.accounts || []).filter(account => account.total !== 0).map((account) => (
+                    <div key={account.accountKey} className="border-t border-gray-200">
+                      <button
+                        onClick={() => toggleAccount(account.accountKey)}
+                        className="w-full flex items-center justify-between p-2 pl-8 hover:bg-white transition-colors text-sm"
+                      >
+                        <div className="flex items-center gap-2">
+                          {expandedAccounts.has(account.accountKey.toString()) ? (
+                            <Minus className="w-3 h-3 text-gray-500" />
+                          ) : (
+                            <Plus className="w-3 h-3 text-gray-500" />
+                          )}
+                          <span className="text-gray-600">{account.accountKey} - {account.accountName}</span>
+                        </div>
+                        <span className="text-gray-700">{formatCurrency(account.total)}</span>
+                      </button>
+
+                      {expandedAccounts.has(account.accountKey.toString()) && (
+                        <div className="bg-gray-50 p-2 pl-12">
+                          <table className="w-full text-xs">
+                            <thead className="bg-gray-100">
+                              <tr>
+                                <th className="p-1 text-right text-gray-700">תאריך</th>
+                                <th className="p-1 text-right text-gray-700">פרטים</th>
+                                <th className="p-1 text-left text-gray-700">סכום</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {account.transactions.map((tx, i) => (
+                                <tr key={i} className="border-t border-gray-100 hover:bg-white">
+                                  <td className="p-1 text-right text-gray-600 text-xs">{tx.date}</td>
+                                  <td className="p-1 text-right text-gray-700 text-xs truncate max-w-[200px]">{tx.details}</td>
+                                  <td className="p-1 text-left text-xs">{formatCurrency(tx.amount)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  <div className="bg-gray-200 px-4 py-2 flex justify-between">
+                    <span className="font-bold text-gray-800 text-sm">סה"כ {category.name}</span>
+                    <span className="font-bold text-gray-700">{formatCurrency(category.total)}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+
+          {/* רווח נקי */}
+          <div className="bg-gradient-to-r from-teal-50 to-emerald-50 border-2 border-teal-400 rounded-md p-2.5">
+            <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
+              <span className="font-bold text-base">💰💰 רווח נקי</span>
+              <span className="font-bold text-teal-700 text-lg">{formatCurrency(totals.netProfit)}</span>
+              <span className="font-bold text-teal-700 bg-teal-100 px-3 py-1 rounded-lg text-sm">
+                {formatPercent(totals.netProfit, totals.revenue)}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* עמודה ימין - גרפים בלבד */}
+        <div className="space-y-3">
+          {/* גרף עמודות חודשי */}
+          <div className="bg-white border border-gray-200 rounded-lg p-2.5 shadow-sm">
+            <div className="flex items-center gap-1.5 mb-1">
+              <BarChart3 className="w-3.5 h-3.5 text-blue-600" />
+              <h3 className="font-bold text-gray-800 text-xs">הכנסות vs הוצאות</h3>
+            </div>
+            <ResponsiveContainer width="100%" height={140}>
+              <BarChart data={monthlyData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" tick={{ fontSize: 9 }} />
+                <YAxis tick={{ fontSize: 8 }} />
+                <Tooltip 
+                  formatter={(value: any) => formatCurrency(value)}
+                  contentStyle={{ fontSize: '10px' }}
+                />
+                <Legend wrapperStyle={{ fontSize: '9px' }} />
+                <Bar dataKey="revenue" name="הכנסות" fill="#10b981" />
+                <Bar dataKey="operating" name="הוצאות" fill="#6b7280" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* גרף קו - מגמת רווחיות */}
+          <div className="bg-white border border-gray-200 rounded-lg p-2.5 shadow-sm">
+            <div className="flex items-center gap-1.5 mb-1">
+              <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
+              <h3 className="font-bold text-gray-800 text-xs">מגמת רווחיות</h3>
+            </div>
+            <ResponsiveContainer width="100%" height={140}>
+              <LineChart data={monthlyData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" tick={{ fontSize: 9 }} />
+                <YAxis tick={{ fontSize: 8 }} />
+                <Tooltip 
+                  formatter={(value: any) => formatCurrency(value)}
+                  contentStyle={{ fontSize: '10px' }}
+                />
+                <Legend wrapperStyle={{ fontSize: '9px' }} />
+                <Line type="monotone" dataKey="grossProfit" name="רווח גולמי" stroke="#10b981" strokeWidth={1.5} />
+                <Line type="monotone" dataKey="operatingProfit" name="רווח תפעולי" stroke="#0ea5e9" strokeWidth={1.5} />
+                <Line type="monotone" dataKey="netProfit" name="רווח נקי" stroke="#14b8a6" strokeWidth={1.5} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* גרף חדש - הכנסות vs הוצאות שיווק */}
+          <div className="bg-white border border-gray-200 rounded-lg p-2.5 shadow-sm">
+            <div className="flex items-center gap-1.5 mb-1">
+              <BarChart3 className="w-3.5 h-3.5 text-purple-600" />
+              <h3 className="font-bold text-gray-800 text-xs">הכנסות vs הוצאות שיווק</h3>
+            </div>
+            <ResponsiveContainer width="100%" height={150}>
+              <BarChart data={monthlyData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" tick={{ fontSize: 9 }} />
+                <YAxis tick={{ fontSize: 8 }} />
+                <Tooltip 
+                  formatter={(value: any) => formatCurrency(value)}
+                  contentStyle={{ fontSize: '10px' }}
+                />
+                <Legend wrapperStyle={{ fontSize: '9px' }} />
+                <Bar dataKey="revenue" name="הכנסות" fill="#10b981" />
+                <Bar dataKey="marketing" name="שיווק" fill="#f97316" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
       </div>
     </div>
   );

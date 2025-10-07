@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { FileText, BarChart3, Database, TrendingUp, Search, Filter, Download, RefreshCw, Phone, Mail, MapPin, ExternalLink, Shield, Zap, Award } from "lucide-react";
+import { FileText, BarChart3, Database, TrendingUp, Phone, Mail, MapPin, ExternalLink, Shield, Zap, Award } from "lucide-react";
+import HierarchicalReport from "./components/reports/HierarchicalReport";
 
 // פלטת צבעים רשמית של ליתאי
 const LITAY = {
@@ -27,8 +28,6 @@ const tabs = [
 
 function App() {
   const [selectedTab, setSelectedTab] = useState("hierarchical");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [showFilters, setShowFilters] = useState(false);
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-gray-50 to-gray-100" dir="rtl" style={{ fontFamily: 'Assistant, Heebo, Arial Hebrew, sans-serif', overflowX: 'hidden' }}>
@@ -50,22 +49,6 @@ function App() {
               <div>
                 <h1 className="text-xl font-bold text-white drop-shadow-md">ליתאי ניהול שירותים בע"מ</h1>
                 <p className="text-sm text-white/90 italic font-medium">Innovation in Balance</p>
-              </div>
-            </div>
-
-            {/* Period & Actions */}
-            <div className="flex items-center gap-6">
-              <div className="bg-white/15 backdrop-blur-md rounded-xl px-5 py-2.5 border border-white/30 shadow-lg hover:bg-white/20 transition-all">
-                <span className="text-white text-sm font-semibold">תקופת דיווח: 01.2025-05.2025</span>
-              </div>
-              
-              <div className="flex gap-2">
-                <button className="p-2.5 rounded-xl bg-white/15 hover:bg-white/25 transition-all border border-white/30 backdrop-blur-md shadow-lg hover:scale-105 active:scale-95">
-                  <RefreshCw size={18} className="text-white" />
-                </button>
-                <button className="p-2.5 rounded-xl bg-white/15 hover:bg-white/25 transition-all border border-white/30 backdrop-blur-md shadow-lg hover:scale-105 active:scale-95">
-                  <Download size={18} className="text-white" />
-                </button>
               </div>
             </div>
           </div>
@@ -100,168 +83,14 @@ function App() {
 
       {/* Main Content */}
       <div className="max-w-[1920px] mx-auto px-8 py-6">
-        {/* Control Bar - משופר */}
-        <div className="bg-white rounded-xl shadow-lg p-5 mb-6 border border-gray-200" style={{ borderRight: `4px solid ${LITAY.primary}` }}>
-          <div className="flex items-center justify-between gap-4">
-            {/* Search */}
-            <div className="flex-1 max-w-md relative group">
-              <Search size={18} className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors" style={{ color: LITAY.neutralMedium }} />
-              <input
-                type="text"
-                placeholder="חיפוש בנתונים..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pr-10 pl-4 py-2.5 rounded-xl border-2 focus:outline-none transition-all"
-                style={{ 
-                  borderColor: LITAY.neutralLight,
-                  backgroundColor: LITAY.neutralBg
-                }}
-                onFocus={(e) => {
-                  e.target.style.borderColor = LITAY.primary;
-                  e.target.style.backgroundColor = LITAY.white;
-                  e.target.style.boxShadow = `0 0 0 4px ${LITAY.primaryLight}40`;
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = LITAY.neutralLight;
-                  e.target.style.backgroundColor = LITAY.neutralBg;
-                  e.target.style.boxShadow = 'none';
-                }}
-              />
-            </div>
-
-            {/* Filters Toggle */}
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl border-2 transition-all font-semibold shadow-md hover:shadow-lg active:scale-95"
-              style={{
-                backgroundColor: showFilters ? LITAY.primary : LITAY.white,
-                color: showFilters ? LITAY.white : LITAY.primaryDark,
-                borderColor: LITAY.primary
-              }}
-            >
-              <Filter size={18} />
-              <span>פילטרים</span>
-            </button>
-
-            {/* Quick Stats */}
-            <div className="flex gap-6 pr-6 border-r-2" style={{ borderColor: LITAY.neutralLight }}>
-              <div className="text-center">
-                <div className="text-xs font-medium mb-1" style={{ color: LITAY.neutralMedium }}>רשומות</div>
-                <div className="text-xl font-bold" style={{ color: LITAY.primaryDark, fontFamily: 'Rubik, Arial' }}>7,156</div>
-              </div>
-              <div className="text-center">
-                <div className="text-xs font-medium mb-1" style={{ color: LITAY.neutralMedium }}>חודשים</div>
-                <div className="text-xl font-bold" style={{ color: LITAY.primaryDark, fontFamily: 'Rubik, Arial' }}>5</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Expandable Filters */}
-          {showFilters && (
-            <div className="mt-5 pt-5 border-t grid grid-cols-4 gap-4" style={{ borderColor: LITAY.neutralLight }}>
-              <div>
-                <label className="text-sm font-semibold mb-2 block" style={{ color: LITAY.neutralDark }}>חודש</label>
-                <select className="w-full px-3 py-2.5 rounded-lg border-2 focus:outline-none transition-all" 
-                        style={{ borderColor: LITAY.neutralLight }}
-                        onFocus={(e) => e.target.style.borderColor = LITAY.primary}
-                        onBlur={(e) => e.target.style.borderColor = LITAY.neutralLight}>
-                  <option>כל החודשים</option>
-                  <option>ינואר</option>
-                  <option>פברואר</option>
-                  <option>מרץ</option>
-                  <option>אפריל</option>
-                  <option>מאי</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-sm font-semibold mb-2 block" style={{ color: LITAY.neutralDark }}>קטגוריה</label>
-                <select className="w-full px-3 py-2.5 rounded-lg border-2 focus:outline-none transition-all" 
-                        style={{ borderColor: LITAY.neutralLight }}
-                        onFocus={(e) => e.target.style.borderColor = LITAY.primary}
-                        onBlur={(e) => e.target.style.borderColor = LITAY.neutralLight}>
-                  <option>כל הקטגוריות</option>
-                  <option>הכנסות</option>
-                  <option>הוצאות תפעול</option>
-                  <option>הוצאות מימון</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-sm font-semibold mb-2 block" style={{ color: LITAY.neutralDark }}>סכום מינימלי</label>
-                <input type="number" placeholder="0" className="w-full px-3 py-2.5 rounded-lg border-2 focus:outline-none transition-all" 
-                       style={{ borderColor: LITAY.neutralLight }}
-                       onFocus={(e) => e.target.style.borderColor = LITAY.primary}
-                       onBlur={(e) => e.target.style.borderColor = LITAY.neutralLight} />
-              </div>
-              <div>
-                <label className="text-sm font-semibold mb-2 block" style={{ color: LITAY.neutralDark }}>סכום מקסימלי</label>
-                <input type="number" placeholder="∞" className="w-full px-3 py-2.5 rounded-lg border-2 focus:outline-none transition-all" 
-                       style={{ borderColor: LITAY.neutralLight }}
-                       onFocus={(e) => e.target.style.borderColor = LITAY.primary}
-                       onBlur={(e) => e.target.style.borderColor = LITAY.neutralLight} />
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Content Area - Grid Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left Sidebar - Summary Cards */}
-          <div className="lg:col-span-3 space-y-4">
-            <SummaryCard
-              title="סה״כ הכנסות"
-              value="₪2,847,520"
-              change="+12.3%"
-              positive={true}
-              icon="💰"
-            />
-            <SummaryCard
-              title="סה״כ הוצאות"
-              value="₪1,923,410"
-              change="+8.7%"
-              positive={false}
-              icon="📊"
-            />
-            <SummaryCard
-              title="רווח נקי"
-              value="₪924,110"
-              change="+18.5%"
-              positive={true}
-              icon="📈"
-            />
-            <SummaryCard
-              title="% רווחיות"
-              value="32.5%"
-              change="+2.1%"
-              positive={true}
-              icon="🎯"
-            />
-          </div>
-
-          {/* Main Content */}
-          <div className="lg:col-span-9">
-            <div className="bg-white rounded-xl shadow-lg border border-gray-200" style={{ borderRight: `4px solid ${LITAY.primary}` }}>
-              <div className="p-6">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${LITAY.primary}20` }}>
-                    {(() => {
-                      const currentTab = tabs.find(t => t.id === selectedTab);
-                      if (currentTab) {
-                        const Icon = currentTab.icon;
-                        return <Icon size={20} style={{ color: LITAY.primary }} />;
-                      }
-                      return null;
-                    })()}
-                  </div>
-                  <h2 className="text-2xl font-bold" style={{ color: LITAY.primaryDark }}>
-                    {tabs.find(t => t.id === selectedTab)?.label || "דוח"}
-                  </h2>
-                </div>
-                
-                {selectedTab === 'hierarchical' && <HierarchicalContent />}
-                {selectedTab === 'pivot' && <PivotContent />}
-                {selectedTab === 'quarterly' && <QuarterlyContent />}
-                {selectedTab === 'raw' && <RawDataContent />}
-              </div>
+        {/* Content Area - Full Width */}
+        <div className="w-full">
+          <div className="bg-white rounded-xl shadow-lg border border-gray-200" style={{ borderRight: `4px solid ${LITAY.primary}` }}>
+            <div className="p-6">
+              {selectedTab === 'hierarchical' && <HierarchicalReport />}
+              {selectedTab === 'pivot' && <PivotContent />}
+              {selectedTab === 'quarterly' && <QuarterlyContent />}
+              {selectedTab === 'raw' && <RawDataContent />}
             </div>
           </div>
         </div>
@@ -391,81 +220,6 @@ function App() {
           </div>
         </div>
       </footer>
-    </div>
-  );
-}
-
-// Summary Card Component - משופר
-interface SummaryCardProps {
-  title: string;
-  value: string;
-  change: string;
-  positive: boolean;
-  icon: string;
-}
-
-function SummaryCard({ title, value, change, positive, icon }: SummaryCardProps) {
-  return (
-    <div 
-      className="bg-white rounded-xl shadow-md p-5 transition-all hover:shadow-2xl hover:-translate-y-1 cursor-pointer group border border-gray-200 relative overflow-hidden"
-      style={{ borderRight: `4px solid ${LITAY.primary}` }}
-    >
-      {/* Hover Background Effect */}
-      <div className="absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-5 transition-opacity" 
-           style={{ background: `linear-gradient(135deg, ${LITAY.primary}, ${LITAY.primaryLight})` }} />
-      
-      <div className="relative">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-sm font-semibold" style={{ color: LITAY.neutralMedium }}>{title}</span>
-          <span className="text-2xl">{icon}</span>
-        </div>
-        <div className="text-3xl font-bold mb-2" style={{ color: LITAY.primaryDark, fontFamily: 'Rubik, Arial' }}>
-          {value}
-        </div>
-        <div className="flex items-center gap-2">
-          <div className={`flex items-center gap-1 text-sm font-bold px-2.5 py-1 rounded-lg ${positive ? 'bg-green-50' : 'bg-red-50'}`}
-               style={{ color: positive ? LITAY.success : LITAY.error }}>
-            <span>{change}</span>
-            <span className="text-lg">{positive ? '↑' : '↓'}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Hierarchical Content
-function HierarchicalContent() {
-  const sections = [
-    { title: "הכנסות", amount: "₪2,847,520", items: 12, color: LITAY.primary, icon: "💰" },
-    { title: "עלות המכר", amount: "₪1,245,680", items: 8, color: LITAY.neutralMedium, icon: "📦" },
-    { title: "הוצאות תפעול", amount: "₪523,490", items: 15, color: LITAY.neutralMedium, icon: "⚙️" },
-    { title: "הוצאות מימון", amount: "₪154,240", items: 5, color: LITAY.neutralMedium, icon: "💳" }
-  ];
-
-  return (
-    <div className="space-y-4">
-      {sections.map((section, index) => (
-        <div 
-          key={index} 
-          className="rounded-xl p-5 hover:shadow-lg transition-all cursor-pointer group border border-gray-100"
-          style={{ backgroundColor: LITAY.neutralBg, borderRight: `4px solid ${section.color}` }}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="text-3xl group-hover:scale-110 transition-transform">{section.icon}</div>
-              <div>
-                <h3 className="font-bold text-xl mb-1" style={{ color: LITAY.primaryDark }}>{section.title}</h3>
-                <p className="text-sm font-medium" style={{ color: LITAY.neutralMedium }}>{section.items} פריטים</p>
-              </div>
-            </div>
-            <div className="text-3xl font-bold group-hover:scale-105 transition-transform" 
-                 style={{ color: section.color, fontFamily: 'Rubik, Arial' }}>
-              {section.amount}
-            </div>
-          </div>
-        </div>
-      ))}
     </div>
   );
 }
