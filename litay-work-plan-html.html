@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>תוכנית עבודה - ליתאי ניהול שירותים</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%);
+            min-height: 100vh;
+            direction: rtl;
+        }
+
+        /* HEADER */
+        header {
+            background: linear-gradient(to left, #528163, #4a5f3a);
+            color: white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo {
+            width: 48px;
+            height: 48px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: #528163;
+        }
+
+        .header-text h1 {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .header-text p {
+            font-size: 14px;
+            color: #8dd1bb;
+        }
+
+        .header-left {
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .date-box {
+            text-align: left;
+        }
+
+        .date-label {
+            font-size: 12px;
+            color: #8dd1bb;
+        }
+
+        .date-value {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        /* MAIN CONTENT */
+        main {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 32px 24px;
+        }
+
+        .title-section {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 32px;
+            margin-bottom: 24px;
+            border-right: 4px solid #528163;
+        }
+
+        .title-section h2 {
+            font-size: 32px;
+            color: #17320b;
+            margin-bottom: 8px;
+        }
+
+        .title-section p {
+            font-size: 18px;
+            color: #666;
+        }
+
+        /* METRICS */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .metric-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 24px;
+            transition: box-shadow 0.3s;
+        }
+
+        .metric-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .metric-label {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .metric-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #528163;
+            margin-bottom: 8px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(to left, #528163, #8dd1bb);
+            transition: width 0.5s ease;
+        }
+
+        /* PHASES */
+        .phase-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 16px;
+            overflow: hidden;
+            transition: box-shadow 0.3s;
+        }
+
+        .phase-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .phase-header {
+            padding: 24px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+        }
+
+        .phase-header-content {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex: 1;
+        }
+
+        .phase-number {
+            width: 40px;
+            height: 40px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #17320b;
+        }
+
+        .phase-info h3 {
+            font-size: 20px;
+            margin-bottom: 4px;
+        }
+
+        .phase-meta {
+            font-size: 14px;
+            opacity: 0.9;
+            display: flex;
+            gap: 16px;
+        }
+
+        .chevron {
+            transition: transform 0.3s;
+        }
+
+        .chevron.expanded {
+            transform: rotate(180deg);
+        }
+
+        .tasks-container {
+            padding: 24px;
+            background: #f8f9fa;
+            display: none;
+        }
+
+        .tasks-container.show {
+            display: block;
+        }
+
+        .task-item {
+            background: white;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: box-shadow 0.3s;
+        }
+
+        .task-item:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+        }
+
+        .task-content {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex: 1;
+        }
+
+        .status-icon {
+            width: 24px;
+            height: 24px;
+        }
+
+        .task-details {
+            flex: 1;
+        }
+
+        .task-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .task-responsible {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-done {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-in-progress {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-pending {
+            background: #e9ecef;
+            color: #495057;
+        }
+
+        /* TIMELINE SUMMARY */
+        .timeline-summary {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 32px;
+            margin-top: 32px;
+        }
+
+        .timeline-summary h3 {
+            font-size: 24px;
+            color: #17320b;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .timeline-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 16px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+
+        .timeline-row.highlight {
+            background: linear-gradient(to left, #528163, #8dd1bb);
+            color: white;
+        }
+
+        .timeline-label {
+            font-weight: 600;
+        }
+
+        .timeline-value {
+            color: #528163;
+            font-weight: bold;
+        }
+
+        .timeline-row.highlight .timeline-value {
+            color: white;
+            font-size: 20px;
+        }
+
+        /* FOOTER */
+        footer {
+            background: linear-gradient(to left, #2d3436, #17320b);
+            color: white;
+            margin-top: 48px;
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 32px 24px;
+        }
+
+        .footer-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 32px;
+            margin-bottom: 32px;
+        }
+
+        .footer-section h4 {
+            color: #8dd1bb;
+            font-size: 18px;
+            margin-bottom: 12px;
+        }
+
+        .footer-section p,
+        .footer-section li {
+            color: #cbd5e0;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .footer-section ul {
+            list-style: none;
+        }
+
+        .footer-section li {
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        .footer-section li:hover {
+            color: #8dd1bb;
+        }
+
+        .footer-bottom {
+            border-top: 1px solid #4a5568;
+            padding-top: 24px;
+            text-align: center;
+            color: #a0aec0;
+            font-size: 14px;
+        }
+
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 16px;
+            }
+
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- HEADER -->
+    <header>
+        <div class="header-content">
+            <div class="header-right">
+                <div class="logo">ל</div>
+                <div class="header-text">
+                    <h1>ליתאי ניהול שירותים</h1>
+                    <p>Innovation in Balance</p>
+                </div>
+            </div>
+            <div class="header-left">
+                <div class="date-box">
+                    <div class="date-label">תאריך עדכון</div>
+                    <div class="date-value" id="currentDate"></div>
+                </div>
+                <div style="font-size: 32px;">🏆</div>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT -->
+    <main>
+        <!-- Title Section -->
+        <div class="title-section">
+            <h2>תוכנית עבודה - מרכז ידע ליתאי</h2>
+            <p>Innovation in Balance</p>
+        </div>
+
+        <!-- Metrics Dashboard -->
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-label">משימות שהושלמו</div>
+                <div class="metric-value">2/21</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 9.5%"></div>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">משימות בתהליך</div>
+                <div class="metric-value">1/21</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 4.8%"></div>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">זמן משוער</div>
+                <div class="metric-value">14 שבועות</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">אחוזי התקדמות</div>
+                <div class="metric-value">14%</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 14%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Phase 1 -->
+        <div class="phase-card">
+            <div class="phase-header" style="background: linear-gradient(to left, #528163, #4a7051);" onclick="togglePhase(1)">
+                <div class="phase-header-content">
+                    <div class="phase-number">1</div>
+                    <div class="phase-info">
+                        <h3>שלב 1: תכנון ואפיון</h3>
+                        <div class="phase-meta">
+                            <span>📅 2 שבועות</span>
+                            <span>2/4 משימות</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="chevron" id="chevron1">▼</div>
+            </div>
+            <div class="tasks-container" id="tasks1">
+                <div class="task-item">
+                    <div class="task-content">
+                        <div class="status-icon">✅</div>
+                        <div class="task-details">
+                            <div class="task-name">מיפוי צרכים ודרישות</div>
+                            <div class="task-responsible">👤 צוות המוצר</div>
+                        </div>
+                    </div>
+                    <div class="status-badge status-done">הושלם</div>
+                </div>
+                <div class="task-item">
+                    <div class="task-content">
+                        <div class="status-icon">✅</div>
+                        <div class="task-details">
+                            <div class="task-name">הגדרת ארכיטקטורת מידע</div>
+                            <div class="task-responsible">👤 אדריכל מידע</div>
+                        </div>
+                    </div>
+                    <div class="status-badge status-done">הושלם</div>
+                </div>
+                <div class="task-item">
+                    <div class="task-content">
+                        <div class="status-icon">🔄</div>
+                        <div class="task-details">
+                            <div class="task-name">עיצוב חווית משתמש (UX)</div>
+                            <div class="task-responsible">👤 מעצב UX/UI</div>
+                        </div>
+                    </div>
+                    <div class="status-badge status-in-progress">בתהליך</div>
+                </div>
+                <div class="task-item">
+                    <div class="task-content">
+                        <div class="status-icon">⭕</div>
+                        <div class="task-details">
+                            <div class="task-name">בחירת טכנולוגיות</div>
+                            <div class="task-responsible">👤 ראש פיתוח</div>
+                        </div>
+                    </div>
+                    <div class="status-badge status-pending">ממתין</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Phase 2 -->
+        <div class="phase-card">
+            <div class="phase-header" style="background: linear-gradient(to left, #657453, #556342);" onclick="togglePhase(2)">
+                <div class="phase-header-content">
+                    <div class="phase-number">2</div>
+                    <div class="phase-info">
+                        <h3>שלב 2: פיתוח תשתית</h3>
+                        <div class="phase-meta">
+                            <span>📅 3 שבועות</span>
+                            <span>0/4 משימות</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="chevron" id="chevron2">▼</div>
+            </div>
+            <div class="tasks-container" id="tasks2">
+                <div class="task-item">
+                    <div class="task-content">
+                        <div class="status-icon">⭕</div>
+                        <div class="task-details">
+                            <div class="task-name">הקמת סביבת פיתוח</div>
+                            <div class="task-responsible">👤 DevOps</div>
+                        </div>
+                    </div>
+                    <div class="status-badge status-pending">ממתין</div>
+                </div>
+                <div class="task-item">
+                    <div class="task-content">
+                        <div class="status-icon">⭕</div>
+                        <div class="task-details">
+                            <div class="task-name">פיתוח מערכת ניהול תוכן</div>
+                            <div class="task-responsible">👤 צוות Backend</div>
+                        </div>
+                    </div>
+                    <div class="status-badge status-pending">ממתין</div>
+                </div>
+                <div class="task-item">
+                    <div class="task-content">
+                        <div class="status-icon">⭕</div>
+                        <div class="task-details">
+                            <div class="task-name">בניית מסד נתונים</div>
+                            <div class="task-responsible">👤 DBA</div>
+                        </div>
+                    </div>
+                    <div class="status-badge status-pending">ממתין</div>
+                </div>
+                <div class="task-item">
+                    <div class="task-content">
+                        <div class="status-icon">⭕</div>
+                        <div class="task-details">
+                            <div class="task-name">אינטגרציה עם מערכות קיימות</div>
+                            <div class="task-responsible">👤 צוות אינטגרציה</div>
+                        </div>
+                    </div>
+                    <div class="status-badge status-pending">ממתין</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Phase 3 -->
+        <div class="phase-card">
+            <div class="phase-header" style="background: linear-gradient(to left, #8a9b7a, #798a69);" onclick="togglePhase(3)">
+                <div class="phase-header-content">
+                    <div class="phase-number">3</div>
+                    <div class="phase-info">
+                        <h3>שלב 3: פיתוח ממשק משתמש</h3>
+                        <div class="phase-meta">
+                            <span>📅 4 שבועות</span>
+                            <span>0/4 משימות</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="chevron" id="chevron3">▼</div>
+            </div>
+            <div class="tasks-container" id="tasks3">
+                <div class="task-item">
+                    <div class="task-content">
+                        <div class="status-icon">⭕</div>
+                        <div class="task-details">
+                            <div class="task-name">פיתוח דף בית ונחיתה</div>
+                            <div class="task-responsible">👤 צוות Frontend</div>
+                        </div>
+                    </div>
+                    <div class="status-badge status-pending">ממתין</div>
+                </div>
+                <div class="task-item">
+                    <div class="task-content">
+                        <div class="status-icon">⭕</div>
+                        <div class="task-details">
+                            <div class="task-name">מנוע חיפוש וסינון</div>
+                            <div class="task-responsible">👤 צוות Frontend</div>
+                        </div>
+                    </div>
+                    <div class="status-badge status-pending">ממתין</div>
+                </div>
+                <div class="task-item">
+                    <div class="task-content">
+                        <div class="status-icon">⭕</div>
+                        <div class="task-details">
+                            <div class="task-name">דפי תוכן ומאמרים</div>
+                            <div class="task-responsible">👤 צוות Frontend</div>
+                        </div>
+                    </div>
+                    <div class="status-badge status-pending">ממתין</div>
+                </div>
+                <div class="task-item">
+                    <div class="task-content">
+                        <div class="status-icon">⭕</div>
+                        <div class="task-details">
+                            <div class="task-name">פאנל ניהול תוכן</div>
+                            <div class="task-responsible">👤 צוות Frontend</div>
+                        </div>
+                    </div>
+                    <div class="status-badge status-pending">ממתין</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Phase 4 -->
+        <div class="phase-card">
+            <div class="phase-header" style="background: linear-gradient(to left, #8dd1bb, #7bc0aa);" onclick="togglePhase(4)">
+                <div class="phase-header-content">
+                    <div class="phase-number">4</div>
+                    <div class="phase-info">
+                        <h3>שלב 4: תוכן ומילוי מידע</h3>
+                        <div class="phase-meta">
+                            <span>📅 3 שבועות</span>
+                            <span>0/4 משימות</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="chevron" id="chevron4">▼</div>
+            </div>
+            <div class="tasks-container" id="tasks4">
+                <div class="task-item">
+                    <div class="task-content">
+                        <div class="status-icon">⭕</div>
+                        <div class="task-details">
+                            <div class="task-name">כתיבת תוכן ראשוני</div>
+                            <div class="task-responsible">👤 צוות תוכן</div>
+                        </div>
+                    </div>
+                    <div class="status-badge status-pending">ממתין</div>
+                </div>
+                <div class="task-item">
+                    <div class="task-content">
+                        <div class="status-icon">⭕</div>
+                        <div class="task-details">
+                            <div class="task-name">הוספת מדריכים ומדיה</div>
+                            <div class="task-responsible">👤 עורכי תוכן</div>
+                        </div>
+                    </div>
+                    <div class="status-badge status-pending">ממתין</div>
+                </div>
+                <div class="task-item">
+                    <div class="task-content">
+                        <div class="status-icon">⭕</div>
+                        <div class="task-details">
+                            <div class="task-name">בדיקת איכות תוכן</div>
+                            <div class="task-responsible">👤 QA תוכן</div>
+                        </div>
+                    </div>
+                    <div class="status-badge status-pending">ממתין</div>
+                </div>
+                <div class="task-item">
+                    <div class="task-content">
+                        <div class="status-icon">⭕</div>
+                        <div class="task-details">
+                            <div class="task-name">תיוג וקטלוג מידע</div>
+                            <div class="task-responsible">👤 אדריכל מידע</div>
+                        </div>
+                    </div>
+                    <div class="status-badge status-pending">ממתין</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Phase 5 -->
+        <div class="phase-card">
+            <div class="phase-header" style="background: linear-gradient(to left, #4a5f3a, #3a4f2a);" onclick="togglePhase(5)">
+                <div class="phase-header-content">
+                    <div class="phase-number">5</div>
+                    <div class="phase-info">
+                        <h3>שלב 5: בדיקות והשקה</h3>
+                        <div class="phase-meta">
+                            <span>📅 2 שבועות</span>
+                            <span>0/5 משימות</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="chevron" id="chevron5">▼</div>
+            </div>
+            <div class="tasks-container" id="tasks5">
+                <div class="task-item">
+                    <div class="task-content">
+                        <div class="status-icon">⭕</div>
+                        <div class="task-details">
+                            <div class="task-name">בדיקות פונקציונליות</div>
+                            <div class="task-responsible">👤 צוות QA</div>
+                        </div>
+                    </div>
+                    <div class="status-badge status-pending">ממתין</div>
+                </div>
+                <div class="task-item">
+                    <div class="task-content">
+                        <div class="status-icon">⭕</div>
+                        <div class="task-details">
+                            <div class="task-name">בדיקות ביצועים</div>
+                            <div class="task-responsible">👤 QA Performance</div>
+                        </div>
+                    </div>
+                    <div class="status-badge status-pending">ממתין</div>
+                </div>
+                <div class="task-item">
+                    <div class="task-content">
+                        <div class="status-icon">⭕</div>
+                        <div class="task-details">
+                            <div class="task-name">בדיקות נגישות</div>
+                            <div class="task-responsible">👤 QA נגישות</div>
+                        </div>
+                    </div>
+                    <div class="status-badge status-pending">ממתין</div>
+                </div>
+                <div class="task-item">
+                    <div class="task-content">
+                        <div class="status-icon">⭕</div>
+                        <div class="task-details">
+                            <div class="task-name">השקה רכה ומשוב</div>
+                            <div class="task-responsible">👤 מנהל מוצר</div>
+                        </div>
+                    </div>
+                    <div class="status-badge status-pending">ממתין</div>
+                </div>
+                <div class="task-item">
+                    <div class="task-content">
+                        <div class="status-icon">⭕</div>
+                        <div class="task-details">
+                            <div class="task-name">השקה מלאה</div>
+                            <div class="task-responsible">👤 כל הצוות</div>
+                        </div>
+                    </div>
+                    <div class="status-badge status-pending">ממתין</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Timeline Summary -->
+        <div class="timeline-summary">
+            <h3>🎯 סיכום ציר זמן</h3>
+            <div class="timeline-row">
+                <span class="timeline-label">תאריך התחלה משוער:</span>
+                <span class="timeline-value" id="startDate"></span>
+            </div>
+            <div class="timeline-row">
+                <span class="timeline-label">תאריך סיום משוער:</span>
+                <span class="timeline-value" id="endDate"></span>
+            </div>
+            <div class="timeline-row highlight">
+                <span class="timeline-label">סך כל משימות:</span>
+                <span class="timeline-value">21 משימות</span>
+            </div>
+        </div>
+    </main>
+
+    <!-- FOOTER -->
+    <footer>
+        <div class="footer-content">
+            <div class="footer-grid">
+                <div class="footer-section">
+                    <h4>ליתאי ניהול שירותים</h4>
+                    <p>משרד הנהלת חשבונות מתקדם המתמחה במערכות חכמות וניתוח פיננסי עמוק</p>
+                </div>
+                <div class="footer-section">
+                    <h4>קישורים מהירים</h4>
+                    <ul>
+                        <li>אודות</li>
+                        <li>שירותים</li>
+                        <li>מרכז ידע</li>
+                        <li>צור קשר</li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>פרטי התקשרות</h4>
+                    <p>טל: 03-1234567</p>
+                    <p>דוא"ל: info@litay.co.il</p>
+                    <p>בני ברק, תל אביב</p>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>© <span id="year"></span> ליתאי ניהול שירותים בע"מ | כל הזכויות שמורות | Innovation in Balance</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Set current date
+        const now = new Date();
+        document.getElementById('currentDate').textContent = now.toLocaleDateString('he-IL');
+        document.getElementById('startDate').textContent = now.toLocaleDateString('he-IL');
+        document.getElementById('year').textContent = now.getFullYear();
+        
+        // Calculate end date (14 weeks from now)
+        const endDate = new Date(now.getTime() + (14 * 7 * 24 * 60 * 60 * 1000));
+        document.getElementById('endDate').textContent = endDate.toLocaleDateString('he-IL');
+
+        // Toggle phase expansion
+        function togglePhase(phaseNum) {
+            const tasksContainer = document.getElementById('tasks' + phaseNum);
+            const chevron = document.getElementById('chevron' + phaseNum);
+            
+            if (tasksContainer.classList.contains('show')) {
+                tasksContainer.classList.remove('show');
+                chevron.classList.remove('expanded');
+            } else {
+                tasksContainer.classList.add('show');
+                chevron.classList.add('expanded');
+            }
+        }
+    </script>
+</body>
+</html>
