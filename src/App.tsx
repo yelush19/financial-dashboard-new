@@ -19,7 +19,7 @@ const LITAY = {
 };
 
 const tabs = [
-  { id: 'hierarchical', label: "דוח היררכי חודשי", icon: FileText },
+  { id: 'hierarchical', label: "דוח רווח והפסד", icon: FileText },
   { id: 'pivot', label: "דוח PIVOT חודשי", icon: BarChart3 },
   { id: 'quarterly', label: "דוח רבעוני מתקדם", icon: TrendingUp },
   { id: 'raw', label: "תנועות גולמיות", icon: Database }
