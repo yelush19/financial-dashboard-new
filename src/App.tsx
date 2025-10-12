@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { FileText, BarChart3, Database, TrendingUp, Phone, Mail, MapPin, ExternalLink, Shield, Zap, Award } from "lucide-react";
 import HierarchicalReport from "./components/reports/HierarchicalReport";
-import MonthlyReport from "./components/reports/MonthlyReport"; // ✅ ייבוא חדש!
+import MonthlyReport from "./components/reports/MonthlyReport";
+import BiurimSystem from "./components/reports/BiurimSystem";
+
+
 
 // פלטת צבעים רשמית של ליתאי
 const LITAY = {
@@ -24,7 +27,7 @@ const tabs = [
   { id: 'hierarchical', label: "דוח רווח והפסד", icon: FileText },
   { id: 'pivot', label: "דוח רווח והפסד חודשי", icon: BarChart3 },
   { id: 'quarterly', label: "דוח רבעוני מתקדם", icon: TrendingUp },
-  { id: 'raw', label: "תנועות גולמיות", icon: Database }
+  { id: 'biurim', label: "מערכת ביאורים", icon: FileText }
 ];
 
 function App() {
@@ -89,10 +92,10 @@ function App() {
           <div className="bg-white rounded-xl shadow-lg border border-gray-200" style={{ borderRight: `4px solid ${LITAY.primary}` }}>
             <div className="p-6">
               {selectedTab === 'hierarchical' && <HierarchicalReport />}
-              {/* ✅ החלפנו את PivotContent בקומפוננטה האמיתית! */}
               {selectedTab === 'pivot' && <MonthlyReport />}
               {selectedTab === 'quarterly' && <QuarterlyContent />}
               {selectedTab === 'raw' && <RawDataContent />}
+              {selectedTab === 'biurim' && <BiurimSystem />}
             </div>
           </div>
         </div>

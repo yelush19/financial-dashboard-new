@@ -69,8 +69,11 @@ const HierarchicalReport: React.FC = () => {
   useEffect(() => {
     const loadTransactions = async () => {
       try {
-        const response = await fetch('/TRANSACTION.csv');
+        const response = await fetch('/TransactionMonthlyModi.csv');
         const text = await response.text();
+        
+        console.log('🔍 דוח היררכי - מתחיל לטעון...');
+        console.log('גודל הקובץ:', text.length, 'תווים');
         
         Papa.parse(text, {
           header: true,
@@ -86,12 +89,19 @@ const HierarchicalReport: React.FC = () => {
               date: row['ת.אסמכ'] || '',
               counterAccountName: row['שם חשבון נגדי'] || '',
             }));
-            setTransactions(parsed.filter(tx => tx.accountKey !== 0));
+            const filtered = parsed.filter(tx => tx.accountKey !== 0);
+            
+            console.log('✅ סה"כ שורות:', results.data.length);
+            console.log('✅ תנועות תקינות:', filtered.length);
+            console.log('✅ דוגמת תאריכים:', filtered.slice(0, 5).map(tx => tx.date));
+            console.log('✅ דוגמת סכומים:', filtered.slice(0, 5).map(tx => tx.amount));
+            
+            setTransactions(filtered);
             setLoading(false);
           },
         });
       } catch (error: any) {
-        console.error('Error loading transactions:', error);
+        console.error('❌ Error loading transactions:', error);
         setLoading(false);
       }
     };
@@ -109,12 +119,19 @@ const HierarchicalReport: React.FC = () => {
   const monthlyData = useMemo((): MonthlyData[] => {
     if (!transactions.length) return [];
 
+    console.log('📊 דוח היררכי - מחשב נתונים חודשיים...');
+
     // מציאת כל החודשים הייחודיים בפועל מהנתונים
     const uniqueMonths = Array.from(new Set(
       transactions
         .filter(tx => tx.date && tx.date.split('/').length === 3)
         .map(tx => parseInt(tx.date.split('/')[1]))
     )).sort((a, b) => a - b);
+    
+    console.log('📅 חודשים שנמצאו:', uniqueMonths);
+    console.log('📈 סה"כ תנועות עם תאריכים תקינים:', 
+      transactions.filter(tx => tx.date && tx.date.split('/').length === 3).length
+    );
     
     return uniqueMonths.map(month => {
       const monthTxs = transactions.filter(tx => {
@@ -159,8 +176,12 @@ const HierarchicalReport: React.FC = () => {
       dateRange: '01-12.25'
     };
 
+    console.log('🏗️ דוח היררכי - בונה מבנה היררכי...');
+
     // משתמש בכל התנועות ללא סינון
     const filteredTransactions = transactions;
+    
+    console.log('📋 סה"כ תנועות לעיבוד:', filteredTransactions.length);
 
     // חישוב טווח תאריכים בפועל
     const validDates = filteredTransactions
@@ -306,6 +327,13 @@ const HierarchicalReport: React.FC = () => {
     const totalCOGS = cogsCategory.total;
     const totalOperating = _.sumBy(operatingCategories, 'total');
     const totalFinancial = _.sumBy(financialCategories, 'total');
+
+    console.log('💰 סיכומים:');
+    console.log('  הכנסות:', totalRevenue);
+    console.log('  עלות מכר:', totalCOGS);
+    console.log('  הוצאות תפעול:', totalOperating);
+    console.log('  הוצאות מימון:', totalFinancial);
+    console.log('  רווח נקי:', totalRevenue + totalCOGS + totalOperating + totalFinancial);
 
     return {
       categories: [revenueCategory, cogsCategory, ...operatingCategories, ...financialCategories],

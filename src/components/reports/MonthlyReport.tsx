@@ -30,7 +30,6 @@ interface VendorData {
 interface CategoryData {
   code: number | string;
   name: string;
-  sortCodeName: string; // ✅ שם קוד מיון אמיתי מהקובץ
   type: 'income' | 'cogs' | 'operating' | 'financial';
   data: MonthlyData;
   vendors?: VendorData[];
@@ -55,7 +54,7 @@ const MonthlyReport = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
-  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set()); // ✅ קיפול קבוצות
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
   const [openingInventory, setOpeningInventory] = useState<{ [month: number]: number }>({});
   const [closingInventory, setClosingInventory] = useState<{ [month: number]: number }>({});
   const [showBiurModal, setShowBiurModal] = useState(false);
@@ -71,7 +70,7 @@ const MonthlyReport = () => {
         setLoading(true);
         setError(null);
         
-        const response = await fetch('/TRANSACTION.csv');
+        const response = await fetch('/TransactionMonthlyModi.csv');
         if (!response.ok) {
           throw new Error(`שגיאה בטעינת הקובץ: ${response.status}`);
         }
@@ -81,9 +80,9 @@ const MonthlyReport = () => {
         Papa.parse(text, {
           header: true,
           skipEmptyLines: true,
-          complete: (results: Papa.ParseResult<any>) => {
+          complete: (results) => {
             try {
-              const parsed: Transaction[] = results.data
+              const parsed: Transaction[] = (results as any).data
                 .map((row: any) => ({
                   sortCode: row['קוד מיון'] ? parseInt(row['קוד מיון']) : null,
                   sortCodeName: row['שם קוד מיון'] || '',
@@ -95,7 +94,7 @@ const MonthlyReport = () => {
                   counterAccountName: row['שם חשבון נגדי'] || '',
                   counterAccountNumber: parseInt(row['ח-ן נגדי']) || 0,
                 }))
-                .filter(tx => tx.accountKey !== 0 && tx.date);
+                .filter((tx: Transaction) => tx.accountKey !== 0 && tx.date);
               
               setTransactions(parsed);
               setLoading(false);
@@ -137,7 +136,6 @@ const MonthlyReport = () => {
       }
     };
 
-    // מציאת חודשים ייחודיים
     const uniqueMonths = Array.from(new Set(
       transactions
         .filter(tx => tx.date && tx.date.split('/').length === 3)
@@ -147,7 +145,6 @@ const MonthlyReport = () => {
         })
     )).sort((a, b) => a - b);
 
-    // פונקציה לעיבוד קטגוריה
     const processCategory = (
       code: number | string, 
       type: 'income' | 'cogs' | 'operating' | 'financial', 
@@ -156,21 +153,21 @@ const MonthlyReport = () => {
       const categoryTxs = transactions.filter(filterFn);
       const data: MonthlyData = { total: 0 };
       
-      // ✅ קבלת שם קוד מיון אמיתי מהטרנזקציה הראשונה
       const sortCodeName = categoryTxs.length > 0 
         ? categoryTxs[0].sortCodeName 
         : (typeof code === 'string' ? code : `קוד ${code}`);
       
       uniqueMonths.forEach(m => data[m] = 0);
       
-      // קיבוץ לפי ספקים/לקוחות
       const vendorGroups = _.groupBy(categoryTxs, tx => {
-        // שימוש בשם חשבון נגדי או בפרטים אם אין
-        return tx.counterAccountName || tx.details.split(' ')[0] || 'לא ידוע';
+        const counterNum = tx.counterAccountNumber || 0;
+        const counterName = tx.counterAccountName || tx.details.split(' ')[0] || 'לא ידוע';
+        return `${counterNum}|||${counterName}`;
       });
       
       const vendors: VendorData[] = Object.entries(vendorGroups)
-        .map(([name, txs]) => {
+        .map(([key, txs]) => {
+          const [counterNum, counterName] = key.split('|||');
           const vendorData: MonthlyData = { total: 0 };
           uniqueMonths.forEach(m => vendorData[m] = 0);
           
@@ -183,15 +180,14 @@ const MonthlyReport = () => {
           });
           
           return {
-            name: name || 'לא ידוע',
+            name: counterNum && counterNum !== '0' ? `${counterName} - ${counterNum}` : counterName || 'לא ידוע',
             data: vendorData,
             transactions: txs as Transaction[]
           };
         })
         .filter(v => v.data.total !== 0)
-        .sort((a, b) => Math.abs(b.data.total) - Math.abs(a.data.total)); // מיון לפי גודל
+        .sort((a, b) => Math.abs(b.data.total) - Math.abs(a.data.total));
 
-      // סיכום כללי
       categoryTxs.forEach(tx => {
         const month = parseInt(tx.date.split('/')[1]);
         if (uniqueMonths.includes(month)) {
@@ -200,10 +196,9 @@ const MonthlyReport = () => {
         }
       });
 
-      return { data, vendors, sortCodeName }; // ✅ מחזירים גם את שם קוד המיון
+      return { data, vendors, sortCodeName };
     };
 
-    // הכנסות
     const income_site = processCategory('income_site', 'income', 
       tx => tx.sortCode === 600 && tx.accountKey >= 40000 && tx.accountKey < 40020
     );
@@ -211,18 +206,15 @@ const MonthlyReport = () => {
       tx => tx.sortCode === 600 && tx.accountKey >= 40020
     );
 
-    // עלות המכר
     const cogs800 = processCategory(800, 'cogs', tx => tx.sortCode === 800);
     const cogs806 = processCategory(806, 'cogs', tx => tx.sortCode === 806);
 
-    // הוצאות תפעול
     const op801 = processCategory(801, 'operating', tx => tx.sortCode === 801);
-    const op806 = processCategory(802, 'operating', tx => tx.sortCode === 802);
-    const op802 = processCategory(805, 'operating', tx => tx.sortCode === 805);
-    const op805 = processCategory(804, 'operating', tx => tx.sortCode === 804);
+    const op802 = processCategory(802, 'operating', tx => tx.sortCode === 802);
+    const op804 = processCategory(804, 'operating', tx => tx.sortCode === 804);
+    const op805 = processCategory(805, 'operating', tx => tx.sortCode === 805);
     const op811 = processCategory(811, 'operating', tx => tx.sortCode === 811);
 
-    // הוצאות מימון
     const fin813 = processCategory(813, 'financial', tx => tx.sortCode === 813);
     const fin990 = processCategory(990, 'financial', tx => tx.sortCode === 990);
     const fin991 = processCategory(991, 'financial', tx => tx.sortCode === 991);
@@ -230,31 +222,30 @@ const MonthlyReport = () => {
     const categories: CategoryData[] = [
       { 
         code: 'income_site', 
-        name: 'הכנסות אתר', 
-        sortCodeName: income_site.sortCodeName || 'הכנסות מכירות - אתר', 
+        name: income_site.sortCodeName || 'הכנסות מכירות - אתר', 
         type: 'income', 
-        ...income_site 
+        data: income_site.data,
+        vendors: income_site.vendors
       },
       { 
         code: 'income_superpharm', 
-        name: 'הכנסות סופרפארם', 
-        sortCodeName: income_superpharm.sortCodeName || 'הכנסות מכירות - סופרפארם', 
+        name: income_superpharm.sortCodeName || 'הכנסות מכירות - סופרפארם', 
         type: 'income', 
-        ...income_superpharm 
+        data: income_superpharm.data,
+        vendors: income_superpharm.vendors
       },
-      { code: 800, name: cogs800.sortCodeName, sortCodeName: cogs800.sortCodeName, type: 'cogs', ...cogs800 },
-      { code: 806, name: cogs806.sortCodeName, sortCodeName: cogs806.sortCodeName, type: 'cogs', ...cogs806 },
-      { code: 801, name: op801.sortCodeName, sortCodeName: op801.sortCodeName, type: 'operating', ...op801 },
-      { code: 802, name: op806.sortCodeName, sortCodeName: op806.sortCodeName, type: 'operating', ...op806 },
-      { code: 805, name: op802.sortCodeName, sortCodeName: op802.sortCodeName, type: 'operating', ...op802 },
-      { code: 804, name: op805.sortCodeName, sortCodeName: op805.sortCodeName, type: 'operating', ...op805 },
-      { code: 811, name: op811.sortCodeName, sortCodeName: op811.sortCodeName, type: 'operating', ...op811 },
-      { code: 813, name: fin813.sortCodeName, sortCodeName: fin813.sortCodeName, type: 'financial', ...fin813 },
-      { code: 990, name: fin990.sortCodeName, sortCodeName: fin990.sortCodeName, type: 'financial', ...fin990 },
-      { code: 991, name: fin991.sortCodeName, sortCodeName: fin991.sortCodeName, type: 'financial', ...fin991 },
+      { code: 800, name: cogs800.sortCodeName, type: 'cogs', data: cogs800.data, vendors: cogs800.vendors },
+      { code: 806, name: cogs806.sortCodeName, type: 'cogs', data: cogs806.data, vendors: cogs806.vendors },
+      { code: 801, name: op801.sortCodeName, type: 'operating', data: op801.data, vendors: op801.vendors },
+      { code: 802, name: op802.sortCodeName, type: 'operating', data: op802.data, vendors: op802.vendors },
+      { code: 804, name: op804.sortCodeName, type: 'operating', data: op804.data, vendors: op804.vendors },
+      { code: 805, name: op805.sortCodeName, type: 'operating', data: op805.data, vendors: op805.vendors },
+      { code: 811, name: op811.sortCodeName, type: 'operating', data: op811.data, vendors: op811.vendors },
+      { code: 813, name: fin813.sortCodeName, type: 'financial', data: fin813.data, vendors: fin813.vendors },
+      { code: 990, name: fin990.sortCodeName, type: 'financial', data: fin990.data, vendors: fin990.vendors },
+      { code: 991, name: fin991.sortCodeName, type: 'financial', data: fin991.data, vendors: fin991.vendors },
     ];
 
-    // חישוב סיכומים
     const revenue: MonthlyData = { total: 0 };
     const cogs: MonthlyData = { total: 0 };
     const operating: MonthlyData = { total: 0 };
@@ -283,7 +274,6 @@ const MonthlyReport = () => {
       }
     });
 
-    // רווחים
     const grossProfit: MonthlyData = { total: 0 };
     const operatingProfit: MonthlyData = { total: 0 };
     const netProfit: MonthlyData = { total: 0 };
@@ -317,7 +307,6 @@ const MonthlyReport = () => {
     setExpandedCategories(newSet);
   };
 
-  // ✅ קיפול/פתיחה של קבוצה שלמה
   const toggleSection = (section: string) => {
     const newSet = new Set(collapsedSections);
     if (newSet.has(section)) {
@@ -328,7 +317,6 @@ const MonthlyReport = () => {
     setCollapsedSections(newSet);
   };
 
-  // ✅ פתח/סגור הכל
   const toggleAllSections = () => {
     if (collapsedSections.size > 0) {
       setCollapsedSections(new Set());
@@ -358,13 +346,11 @@ const MonthlyReport = () => {
     let txs: Transaction[];
     
     if (vendor) {
-      // הצג תנועות של ספק מסוים
       txs = vendor.transactions;
       if (month) {
         txs = txs.filter(tx => parseInt(tx.date.split('/')[1]) === month);
       }
     } else {
-      // הצג את כל התנועות של הקטגוריה
       txs = transactions.filter(tx => {
         if (category.code === 'income_site') {
           return tx.sortCode === 600 && tx.accountKey >= 40000 && tx.accountKey < 40020;
@@ -380,8 +366,7 @@ const MonthlyReport = () => {
       }
     }
 
-    // ✅ שימוש בשם האמיתי מהקובץ
-    const categoryName = category.sortCodeName || category.name;
+    const categoryName = category.name;
     const title = vendor 
       ? `${categoryName} - ${vendor.name}${month ? ` - ${MONTH_NAMES[month - 1]}` : ''}`
       : `${categoryName}${month ? ` - ${MONTH_NAMES[month - 1]}` : ''}`;
@@ -401,34 +386,29 @@ const MonthlyReport = () => {
     });
     csv += 'סה"כ\n';
 
-    // הכנסות
     csv += '\nהכנסות\n';
     monthlyData.categories.filter(c => c.type === 'income').forEach(cat => {
-      csv += `"${cat.sortCodeName || cat.name}",`;
+      csv += `"${cat.name}",`;
       monthlyData.months.forEach(m => {
         csv += `${cat.data[m] || 0},`;
       });
       csv += `${cat.data.total}\n`;
     });
 
-    // סה"כ הכנסות
     csv += `"סה""כ הכנסות",`;
     monthlyData.months.forEach(m => {
       csv += `${monthlyData.totals.revenue[m] || 0},`;
     });
     csv += `${monthlyData.totals.revenue.total}\n`;
 
-    // עלות מכר
     csv += '\nעלות המכר\n';
     monthlyData.categories.filter(c => c.type === 'cogs').forEach(cat => {
-      csv += `"${cat.sortCodeName || cat.name}",`;
+      csv += `"${cat.name}",`;
       monthlyData.months.forEach(m => {
         csv += `${Math.abs(cat.data[m] || 0)},`;
       });
       csv += `${Math.abs(cat.data.total)}\n`;
     });
-
-    // שאר הסעיפים...
     
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -437,7 +417,6 @@ const MonthlyReport = () => {
     link.click();
   };
 
-  // ============ RENDER ============
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -473,7 +452,7 @@ const MonthlyReport = () => {
         <div className="text-center">
           <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
           <p className="text-xl text-gray-600 mb-2">לא נמצאו נתונים</p>
-          <p className="text-sm text-gray-500">נא לוודא שקובץ TRANSACTION.csv קיים בתיקייה</p>
+          <p className="text-sm text-gray-500">נא לוודא שקובץ TransactionMonthlyModi.csv קיים בתיקייה</p>
         </div>
       </div>
     );
@@ -481,7 +460,6 @@ const MonthlyReport = () => {
 
   return (
     <div className="w-full p-6 bg-white">
-      {/* כותרת וכפתורי פעולה */}
       <div className="mb-6 border-b border-gray-200 pb-4">
         <div className="flex justify-between items-start">
           <div>
@@ -521,7 +499,6 @@ const MonthlyReport = () => {
         </div>
       </div>
 
-      {/* כרטיסי סיכום */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className={`p-4 rounded-lg border ${CARD_COLORS.revenue}`}>
           <div className="text-sm text-gray-600 mb-1">סה"כ הכנסות</div>
@@ -549,7 +526,6 @@ const MonthlyReport = () => {
         </div>
       </div>
 
-      {/* טבלה ראשית עם גלילה פנימית */}
       <div 
         className="overflow-x-auto shadow-lg rounded-lg" 
         style={{ 
@@ -626,10 +602,7 @@ const MonthlyReport = () => {
                           <Minus className="w-4 h-4 text-green-600" /> : 
                           <Plus className="w-4 h-4 text-green-600" />
                       )}
-                      <span className="font-medium">600 - {cat.sortCodeName || cat.name}</span>
-                      {cat.vendors && cat.vendors.length > 0 && (
-                        <span className="text-xs text-gray-500">({cat.vendors.length})</span>
-                      )}
+                      <span className="font-medium">600 - {cat.name}</span>
                     </div>
                   </td>
                   {monthlyData.months.map(m => (
@@ -652,14 +625,12 @@ const MonthlyReport = () => {
                   </td>
                 </tr>
                 
-                {/* לקוחות/ספקים */}
                 {expandedCategories.has(String(cat.code)) && cat.vendors?.map((vendor, idx) => (
                   <tr key={`${cat.code}-${idx}`} className="bg-green-50">
                     <td className="border border-gray-300 px-8 py-2 text-sm text-gray-700 sticky right-0 bg-green-50">
                       <div className="flex items-center gap-2">
                         <span className="text-gray-400">├─</span>
                         <span>{vendor.name}</span>
-                        <span className="text-xs text-gray-500">({vendor.transactions.length})</span>
                       </div>
                     </td>
                     {monthlyData.months.map(m => (
@@ -685,7 +656,6 @@ const MonthlyReport = () => {
               </React.Fragment>
             ))}
             
-            {/* סה"כ הכנסות */}
             <tr className={`${CARD_COLORS.revenue} border-2 border-green-400`}>
               <td className="border border-gray-300 px-4 py-3 font-bold text-green-800 sticky right-0 bg-gradient-to-br from-green-50 to-emerald-50">
                 סה"כ הכנסות
@@ -703,7 +673,6 @@ const MonthlyReport = () => {
             </>
             )}
 
-            {/* ריווח */}
             <tr><td colSpan={monthlyData.months.length + 3} className="h-3 bg-gray-50"></td></tr>
 
             {/* ========== עלות המכר ========== */}
@@ -728,7 +697,6 @@ const MonthlyReport = () => {
             {!collapsedSections.has('cogs') && (
               <>
 
-            {/* מלאי פתיחה */}
             <tr className="bg-blue-50">
               <td className="border border-gray-300 px-6 py-2 sticky right-0 bg-blue-50">
                 <div className="flex items-center gap-2">
@@ -752,7 +720,6 @@ const MonthlyReport = () => {
               <td className="border border-gray-300"></td>
             </tr>
 
-            {/* רכשות */}
             {monthlyData.categories.filter(c => c.type === 'cogs').map(cat => (
               <React.Fragment key={cat.code}>
                 <tr 
@@ -766,10 +733,7 @@ const MonthlyReport = () => {
                           <Minus className="w-4 h-4 text-orange-600" /> : 
                           <Plus className="w-4 h-4 text-orange-600" />
                       )}
-                      <span className="font-medium">{cat.code} - {cat.sortCodeName || cat.name}</span>
-                      {cat.vendors && cat.vendors.length > 0 && (
-                        <span className="text-xs text-gray-500">({cat.vendors.length})</span>
-                      )}
+                      <span className="font-medium">{cat.code} - {cat.name}</span>
                     </div>
                   </td>
                   {monthlyData.months.map(m => (
@@ -792,14 +756,12 @@ const MonthlyReport = () => {
                   </td>
                 </tr>
                 
-                {/* ספקים */}
                 {expandedCategories.has(String(cat.code)) && cat.vendors?.map((vendor, idx) => (
                   <tr key={`${cat.code}-${idx}`} className="bg-orange-50">
                     <td className="border border-gray-300 px-8 py-2 text-sm text-gray-700 sticky right-0 bg-orange-50">
                       <div className="flex items-center gap-2">
                         <span className="text-gray-400">├─</span>
                         <span>{vendor.name}</span>
-                        <span className="text-xs text-gray-500">({vendor.transactions.length})</span>
                       </div>
                     </td>
                     {monthlyData.months.map(m => (
@@ -825,7 +787,6 @@ const MonthlyReport = () => {
               </React.Fragment>
             ))}
 
-            {/* מלאי סגירה */}
             <tr className="bg-blue-50">
               <td className="border border-gray-300 px-6 py-2 sticky right-0 bg-blue-50">
                 <div className="flex items-center gap-2">
@@ -849,7 +810,6 @@ const MonthlyReport = () => {
               <td className="border border-gray-300"></td>
             </tr>
 
-            {/* סה"כ עלות מכר */}
             <tr className={`${CARD_COLORS.cogs} border-2 border-orange-400`}>
               <td className="border border-gray-300 px-4 py-3 font-bold text-orange-800 sticky right-0 bg-orange-50">
                 סה"כ עלות המכר
@@ -872,7 +832,6 @@ const MonthlyReport = () => {
               <td className="border border-gray-300"></td>
             </tr>
 
-            {/* רווח גולמי */}
             <tr className={`${CARD_COLORS.grossProfit} border-2 border-green-400`}>
               <td className="border border-gray-300 px-4 py-3 font-bold text-green-800 sticky right-0 bg-green-50">
                 💰 רווח גולמי
@@ -890,7 +849,6 @@ const MonthlyReport = () => {
             </>
             )}
 
-            {/* ריווח */}
             <tr><td colSpan={monthlyData.months.length + 3} className="h-3 bg-gray-50"></td></tr>
 
             {/* ========== הוצאות תפעול ========== */}
@@ -928,7 +886,7 @@ const MonthlyReport = () => {
                           <Minus className="w-4 h-4 text-gray-600" /> : 
                           <Plus className="w-4 h-4 text-gray-600" />
                       )}
-                      <span className="font-medium">{cat.code} - {cat.sortCodeName || cat.name}</span>
+                      <span className="font-medium">{cat.code} - {cat.name}</span>
                       {cat.vendors && cat.vendors.length > 0 && (
                         <span className="text-xs text-gray-500">({cat.vendors.length})</span>
                       )}
@@ -954,14 +912,12 @@ const MonthlyReport = () => {
                   </td>
                 </tr>
                 
-                {/* ספקים */}
                 {expandedCategories.has(String(cat.code)) && cat.vendors?.map((vendor, idx) => (
                   <tr key={`${cat.code}-${idx}`} className="bg-gray-50">
                     <td className="border border-gray-300 px-8 py-2 text-sm text-gray-700 sticky right-0 bg-gray-50">
                       <div className="flex items-center gap-2">
                         <span className="text-gray-400">├─</span>
                         <span>{vendor.name}</span>
-                        <span className="text-xs text-gray-500">({vendor.transactions.length})</span>
                       </div>
                     </td>
                     {monthlyData.months.map(m => (
@@ -987,7 +943,6 @@ const MonthlyReport = () => {
               </React.Fragment>
             ))}
 
-            {/* רווח תפעולי */}
             <tr className={`${CARD_COLORS.opProfit} border-2 border-emerald-400`}>
               <td className="border border-gray-300 px-4 py-3 font-bold text-emerald-800 sticky right-0 bg-emerald-50">
                 💼 רווח תפעולי
@@ -1005,7 +960,6 @@ const MonthlyReport = () => {
             </>
             )}
 
-            {/* ריווח */}
             <tr><td colSpan={monthlyData.months.length + 3} className="h-3 bg-gray-50"></td></tr>
 
             {/* ========== הוצאות מימון ========== */}
@@ -1043,7 +997,7 @@ const MonthlyReport = () => {
                           <Minus className="w-4 h-4 text-slate-600" /> : 
                           <Plus className="w-4 h-4 text-slate-600" />
                       )}
-                      <span className="font-medium">{cat.code} - {cat.sortCodeName || cat.name}</span>
+                      <span className="font-medium">{cat.code} - {cat.name}</span>
                       {cat.vendors && cat.vendors.length > 0 && (
                         <span className="text-xs text-gray-500">({cat.vendors.length})</span>
                       )}
@@ -1069,14 +1023,12 @@ const MonthlyReport = () => {
                   </td>
                 </tr>
                 
-                {/* ספקים */}
                 {expandedCategories.has(String(cat.code)) && cat.vendors?.map((vendor, idx) => (
                   <tr key={`${cat.code}-${idx}`} className="bg-slate-50">
                     <td className="border border-gray-300 px-8 py-2 text-sm text-gray-700 sticky right-0 bg-slate-50">
                       <div className="flex items-center gap-2">
                         <span className="text-gray-400">├─</span>
                         <span>{vendor.name}</span>
-                        <span className="text-xs text-gray-500">({vendor.transactions.length})</span>
                       </div>
                     </td>
                     {monthlyData.months.map(m => (
@@ -1102,7 +1054,6 @@ const MonthlyReport = () => {
               </React.Fragment>
             ))}
 
-            {/* רווח נקי */}
             <tr className={`${CARD_COLORS.netProfit} border-2 border-teal-400`}>
               <td className="border border-gray-300 px-4 py-3 font-bold text-teal-800 sticky right-0 bg-gradient-to-r from-teal-50 to-emerald-50">
                 💰💰 רווח נקי
@@ -1123,7 +1074,6 @@ const MonthlyReport = () => {
         </table>
       </div>
 
-      {/* הערות */}
       <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm">
         <p className="font-semibold text-amber-800 mb-2 flex items-center gap-2">
           <TrendingUp className="w-4 h-4" />
@@ -1140,7 +1090,6 @@ const MonthlyReport = () => {
         </ul>
       </div>
 
-      {/* מודאל ביאורים */}
       {showBiurModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-7xl w-full max-h-[90vh] overflow-hidden">
@@ -1168,7 +1117,8 @@ const MonthlyReport = () => {
                     <th className="border px-3 py-2 text-right">חשבון</th>
                     <th className="border px-3 py-2 text-right">שם חשבון</th>
                     <th className="border px-3 py-2 text-right">פרטים</th>
-                    <th className="border px-3 py-2 text-right">ספק/לקוח</th>
+                    <th className="border px-3 py-2 text-right">ח-ן נגדי</th>
+                    <th className="border px-3 py-2 text-right">שם ח-ן נגדי</th>
                     <th className="border px-3 py-2 text-left">סכום</th>
                   </tr>
                 </thead>
@@ -1176,10 +1126,15 @@ const MonthlyReport = () => {
                   {biurData.transactions.map((tx, idx) => (
                     <tr key={idx} className="hover:bg-gray-50">
                       <td className="border px-3 py-2 text-sm">{tx.date}</td>
-                      <td className="border px-3 py-2 text-sm">{tx.accountKey}</td>
+                      <td className="border px-3 py-2 text-sm font-medium text-blue-600">{tx.accountKey}</td>
                       <td className="border px-3 py-2 text-sm">{tx.accountName}</td>
-                      <td className="border px-3 py-2 text-sm">{tx.details}</td>
-                      <td className="border px-3 py-2 text-sm">{tx.counterAccountName}</td>
+                      <td className="border px-3 py-2 text-sm max-w-xs truncate" title={tx.details}>{tx.details}</td>
+                      <td className="border px-3 py-2 text-sm font-medium text-purple-600">
+                        {tx.counterAccountNumber || '-'}
+                      </td>
+                      <td className="border px-3 py-2 text-sm">
+                        {tx.counterAccountName || '-'}
+                      </td>
                       <td className="border px-3 py-2 text-sm text-left font-medium">
                         {formatCurrency(tx.amount)}
                       </td>
@@ -1188,7 +1143,7 @@ const MonthlyReport = () => {
                 </tbody>
                 <tfoot className="bg-gray-100 sticky bottom-0">
                   <tr>
-                    <td colSpan={5} className="border px-3 py-2 text-right font-bold">סה"כ:</td>
+                    <td colSpan={6} className="border px-3 py-2 text-right font-bold">סה"כ:</td>
                     <td className="border px-3 py-2 text-left font-bold">
                       {formatCurrency(biurData.transactions.reduce((sum, tx) => sum + tx.amount, 0))}
                     </td>
