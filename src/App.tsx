@@ -3,7 +3,7 @@ import { FileText, BarChart3, Database, TrendingUp, Phone, Mail, MapPin, Externa
 import HierarchicalReport from "./components/reports/HierarchicalReport";
 import MonthlyReport from "./components/reports/MonthlyReport";
 import BiurimSystem from "./components/reports/biurim/BiurimSystem";
-
+import { ProtectedRoute } from './components/ProtectedRoute';
 
 
 // פלטת צבעים רשמית של ליתאי
@@ -34,6 +34,7 @@ function App() {
   const [selectedTab, setSelectedTab] = useState("hierarchical");
 
   return (
+     <ProtectedRoute>
     <div className="min-h-screen w-full bg-gradient-to-br from-gray-50 to-gray-100" dir="rtl" style={{ fontFamily: 'Assistant, Heebo, Arial Hebrew, sans-serif', overflowX: 'hidden' }}>
       {/* Header - משופר עם אפקטים */}
       <header 
@@ -226,6 +227,7 @@ function App() {
         </div>
       </footer>
     </div>
+    </ProtectedRoute>
   );
 }
 
