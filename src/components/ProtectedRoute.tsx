@@ -69,6 +69,7 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -77,17 +78,15 @@ const LoginPage = () => {
     setLoading(true);
     setMessage('');
 
-    const { error } = await supabase.auth.signInWithOtp({
+    const { error } = await supabase.auth.signInWithPassword({
       email,
-      options: {
-        emailRedirectTo: window.location.origin,
-      },
+      password,
     });
 
     if (error) {
       setMessage('שגיאה בשליחת קישור: ' + error.message);
     } else {
-      setMessage('נשלח אליך קישור למייל! בדוק את תיבת הדואר שלך.');
+      setMessage('התחברת בהצלחה!');
     }
     setLoading(false);
   };
@@ -112,22 +111,38 @@ const LoginPage = () => {
               required
             />
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              סיסמה
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="••••••••"
+              required
+            />
+          </div>
           <button
-  type="submit"
-  disabled={loading}
-  style={{
-    background: loading 
-      ? 'linear-gradient(135deg, #9ca3af 0%, #6b7280 100%)' 
-      : 'linear-gradient(135deg, #2d5f3f 0%, #528163 100%)'
-  }}
-  className="w-full text-white py-4 rounded-lg hover:opacity-90 disabled:opacity-50 font-bold transition-all hover:scale-105 active:scale-95 shadow-lg disabled:cursor-not-allowed"
-
+            type="submit"
+            disabled={loading}
+            style={{
+              background: loading 
+                ? 'linear-gradient(135deg, #9ca3af 0%, #6b7280 100%)' 
+                : 'linear-gradient(135deg, #2d5f3f 0%, #528163 100%)'
+            }}
+            className="w-full text-white py-4 rounded-lg hover:opacity-90 disabled:opacity-50 font-bold transition-all hover:scale-105 active:scale-95 shadow-lg disabled:cursor-not-allowed"
           >
-            {loading ? 'שולח...' : 'שלח קישור כניסה'}
+            {loading ? 'מתחבר...' : 'שלח קישור כניסה'}
           </button>
         </form>
         {message && (
-          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800">
+          <div className={`mt-4 p-3 rounded-md text-sm ${
+            message.includes('שגיאה') 
+              ? 'bg-red-50 border border-red-200 text-red-800'
+              : 'bg-green-50 border border-green-200 text-green-800'
+          }`}>
             {message}
           </div>
         )}
