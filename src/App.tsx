@@ -2,7 +2,7 @@ import { useState } from "react";
 import { FileText, BarChart3, Database, TrendingUp, Phone, Mail, MapPin, ExternalLink, Shield, Zap, Award } from "lucide-react";
 import HierarchicalReport from "./components/reports/HierarchicalReport";
 import MonthlyReport from "./components/reports/MonthlyReport";
-import BiurimSystem from "./components/reports/BiurimSystem";
+import BiurimSystem from "./components/reports/biurim/BiurimSystem";
 
 
 

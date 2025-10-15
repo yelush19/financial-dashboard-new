@@ -59,21 +59,58 @@ const HierarchicalReport: React.FC = () => {
   const [expandedSubCategories, setExpandedSubCategories] = useState<Set<string>>(new Set());
   const [expandedAccounts, setExpandedAccounts] = useState<Set<string>>(new Set());
   
-  const [openingInventory, setOpeningInventory] = useState<number>(
-    parseFloat(localStorage.getItem('openingInventory') || '0')
-  );
-  const [closingInventory, setClosingInventory] = useState<number>(
-    parseFloat(localStorage.getItem('closingInventory') || '0')
-  );
+  // מלאי
+  const [openingInventory, setOpeningInventory] = useState<Record<number, number>>(() => {
+    try {
+      const saved = localStorage.getItem('openingInventory');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+  const [closingInventory, setClosingInventory] = useState<Record<number, number>>(() => {
+    try {
+      const saved = localStorage.getItem('closingInventory');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  // ✅ התאמות 2024 - משיכה אוטומטית מהדוח החודשי
+  const [adjustments2024Monthly, setAdjustments2024Monthly] = useState<{ [categoryCode: string]: { [month: number]: number } }>(() => {
+    try {
+      const saved = localStorage.getItem('adjustments2024');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  // חישוב סכומים מצטברים של התאמות
+  const getTotalAdjustment = (categoryCode: string): number => {
+    const monthlyAdj = adjustments2024Monthly[categoryCode];
+    if (!monthlyAdj) return 0;
+    return Object.values(monthlyAdj).reduce((sum, val) => sum + val, 0);
+  };
+
+  // שמירת מלאי והתאמות
+  const saveInventory = () => {
+    try {
+      localStorage.setItem('openingInventory', JSON.stringify(openingInventory));
+      localStorage.setItem('closingInventory', JSON.stringify(closingInventory));
+      localStorage.setItem('adjustments2024', JSON.stringify(adjustments2024Monthly));
+      alert('הנתונים נשמרו בהצלחה!');
+    } catch (error) {
+      alert('שגיאה בשמירת הנתונים');
+    }
+  };
 
   useEffect(() => {
     const loadTransactions = async () => {
       try {
         const response = await fetch('/TransactionMonthlyModi.csv');
         const text = await response.text();
-        
-        console.log('🔍 דוח היררכי - מתחיל לטעון...');
-        console.log('גודל הקובץ:', text.length, 'תווים');
         
         Papa.parse(text, {
           header: true,
@@ -91,11 +128,6 @@ const HierarchicalReport: React.FC = () => {
             }));
             const filtered = parsed.filter(tx => tx.accountKey !== 0);
             
-            console.log('✅ סה"כ שורות:', results.data.length);
-            console.log('✅ תנועות תקינות:', filtered.length);
-            console.log('✅ דוגמת תאריכים:', filtered.slice(0, 5).map(tx => tx.date));
-            console.log('✅ דוגמת סכומים:', filtered.slice(0, 5).map(tx => tx.amount));
-            
             setTransactions(filtered);
             setLoading(false);
           },
@@ -109,29 +141,33 @@ const HierarchicalReport: React.FC = () => {
     loadTransactions();
   }, []);
 
-  const saveInventory = () => {
-    localStorage.setItem('openingInventory', openingInventory.toString());
-    localStorage.setItem('closingInventory', closingInventory.toString());
-    alert('המלאי נשמר בהצלחה!');
+  // ✅ רענון נתונים מהדוח החודשי
+  const refreshData = () => {
+    try {
+      const savedAdj = localStorage.getItem('adjustments2024');
+      setAdjustments2024Monthly(savedAdj ? JSON.parse(savedAdj) : {});
+      
+      const savedOpening = localStorage.getItem('openingInventory');
+      setOpeningInventory(savedOpening ? JSON.parse(savedOpening) : {});
+      
+      const savedClosing = localStorage.getItem('closingInventory');
+      setClosingInventory(savedClosing ? JSON.parse(savedClosing) : {});
+      
+      alert('הנתונים רועננו מהדוח החודשי!');
+    } catch (error) {
+      alert('שגיאה ברענון הנתונים');
+    }
   };
 
   // חישוב נתונים חודשיים
   const monthlyData = useMemo((): MonthlyData[] => {
     if (!transactions.length) return [];
 
-    console.log('📊 דוח היררכי - מחשב נתונים חודשיים...');
-
-    // מציאת כל החודשים הייחודיים בפועל מהנתונים
     const uniqueMonths = Array.from(new Set(
       transactions
         .filter(tx => tx.date && tx.date.split('/').length === 3)
         .map(tx => parseInt(tx.date.split('/')[1]))
     )).sort((a, b) => a - b);
-    
-    console.log('📅 חודשים שנמצאו:', uniqueMonths);
-    console.log('📈 סה"כ תנועות עם תאריכים תקינים:', 
-      transactions.filter(tx => tx.date && tx.date.split('/').length === 3).length
-    );
     
     return uniqueMonths.map(month => {
       const monthTxs = transactions.filter(tx => {
@@ -151,23 +187,25 @@ const HierarchicalReport: React.FC = () => {
       const cogs = _.sumBy(monthTxs.filter(tx => tx.sortCode === 800), 'amount');
       const operating = _.sumBy(monthTxs.filter(tx => [801, 806, 802, 805, 804, 811].includes(tx.sortCode || 0)), 'amount');
       const financial = _.sumBy(monthTxs.filter(tx => [813, 990, 991].includes(tx.sortCode || 0)), 'amount');
-      
-      // חישוב הוצאות שיווק (805 + 804)
       const marketing = _.sumBy(monthTxs.filter(tx => [805, 804].includes(tx.sortCode || 0)), 'amount');
+
+      const openingInv = openingInventory[month] || 0;
+      const closingInv = closingInventory[month] || 0;
+      const actualCOGS = Math.abs(cogs) + openingInv - closingInv;
 
       return {
         month: MONTH_NAMES[month - 1],
         revenue,
-        cogs,
+        cogs: -actualCOGS,
         operating,
         financial,
         marketing,
-        grossProfit: revenue + cogs,
-        operatingProfit: revenue + cogs + operating,
-        netProfit: revenue + cogs + operating + financial,
+        grossProfit: revenue - actualCOGS,
+        operatingProfit: revenue - actualCOGS + operating,
+        netProfit: revenue - actualCOGS + operating + financial,
       };
     });
-  }, [transactions]);
+  }, [transactions, openingInventory, closingInventory]);
 
   const hierarchicalData = useMemo(() => {
     if (!transactions.length) return { 
@@ -176,14 +214,9 @@ const HierarchicalReport: React.FC = () => {
       dateRange: '01-12.25'
     };
 
-    console.log('🏗️ דוח היררכי - בונה מבנה היררכי...');
-
-    // משתמש בכל התנועות ללא סינון
     const filteredTransactions = transactions;
-    
-    console.log('📋 סה"כ תנועות לעיבוד:', filteredTransactions.length);
 
-    // חישוב טווח תאריכים בפועל
+    // חישוב טווח תאריכים
     const validDates = filteredTransactions
       .map(tx => tx.date)
       .filter(d => d && d.split('/').length === 3)
@@ -197,7 +230,6 @@ const HierarchicalReport: React.FC = () => {
         };
       })
       .sort((a, b) => {
-        // מיון לפי שנה, אחר כך חודש, אחר כך יום
         if (a.year !== b.year) return a.year - b.year;
         if (a.month !== b.month) return a.month - b.month;
         return a.day - b.day;
@@ -209,11 +241,9 @@ const HierarchicalReport: React.FC = () => {
       try {
         const firstDate = validDates[0];
         const lastDate = validDates[validDates.length - 1];
-        
         const firstMonth = firstDate.month;
         const lastMonth = lastDate.month;
-        const year = lastDate.year.toString().substring(2); // 2 ספרות אחרונות
-        
+        const year = lastDate.year.toString().substring(2);
         formattedDateRange = `${String(firstMonth).padStart(2, '0')}-${String(lastMonth).padStart(2, '0')}.${year}`;
       } catch (error: any) {
         console.error('Error formatting date range:', error);
@@ -254,16 +284,25 @@ const HierarchicalReport: React.FC = () => {
       ],
     };
 
-    // עלות המכר
+    // ✅ עלות המכר - עם מלאי והתאמות
     const cogs800 = filteredTransactions.filter(tx => tx.sortCode === 800);
-    const purchases = _.sumBy(cogs800, 'amount');
-    const actualCOGS = openingInventory + purchases - closingInventory;
+    const purchases = Math.abs(_.sumBy(cogs800, 'amount'));
+    
+    // מלאי פתיחה = ינואר (חודש 1)
+    const totalOpeningInv = openingInventory[1] || 0;
+    
+    // מלאי סגירה = החודש האחרון
+    const closingMonths = Object.keys(closingInventory).map(Number).filter(m => m > 0).sort((a, b) => b - a);
+    const totalClosingInv = closingMonths.length > 0 ? closingInventory[closingMonths[0]] || 0 : 0;
+    
+    const cogsAdjustment = getTotalAdjustment('800');
+    const actualCOGS = purchases + totalOpeningInv - totalClosingInv + cogsAdjustment;
 
     const cogsCategory: CategoryData = {
       code: 800,
       name: 'עלות המכר',
       type: 'cogs',
-      total: actualCOGS,
+      total: -actualCOGS,
       accounts: Object.entries(_.groupBy(cogs800, 'accountKey')).map(([key, txs]) => ({
         accountKey: parseInt(key),
         accountName: (txs as Transaction[])[0].accountName,
@@ -272,15 +311,17 @@ const HierarchicalReport: React.FC = () => {
       })),
     };
 
-    // הוצאות תפעול
+    // ✅ הוצאות תפעול - עם התאמות
     const operatingCodes = [801, 806, 802, 805, 804, 811];
     const operatingCategories: CategoryData[] = operatingCodes.map(code => {
       const txs = filteredTransactions.filter(tx => tx.sortCode === code);
+      const baseTotal = _.sumBy(txs, 'amount');
+      const adjustment = getTotalAdjustment(String(code));
       return {
         code,
         name: txs[0]?.sortCodeName || `קוד ${code}`,
         type: 'operating',
-        total: _.sumBy(txs, 'amount'),
+        total: baseTotal + adjustment,
         accounts: Object.entries(_.groupBy(txs, 'accountKey')).map(([key, accounts]) => ({
           accountKey: parseInt(key),
           accountName: (accounts as Transaction[])[0].accountName,
@@ -290,18 +331,21 @@ const HierarchicalReport: React.FC = () => {
       };
     });
 
-    // הוצאות מימון
+    // ✅ הוצאות מימון - עם התאמות
     const financial813 = filteredTransactions.filter(tx => tx.sortCode === 813);
     const financial990 = filteredTransactions.filter(tx => tx.sortCode === 990);
     const financialBankFees = [...financial813, ...financial990];
     const financial991 = filteredTransactions.filter(tx => tx.sortCode === 991);
+
+    const bankFeesAdjustment = getTotalAdjustment('813') + getTotalAdjustment('990');
+    const loanAdjustment = getTotalAdjustment('991');
 
     const financialCategories: CategoryData[] = [
       {
         code: '813+990',
         name: 'עמלות בנקים וסליקה',
         type: 'financial',
-        total: _.sumBy(financialBankFees, 'amount'),
+        total: _.sumBy(financialBankFees, 'amount') + bankFeesAdjustment,
         accounts: Object.entries(_.groupBy(financialBankFees, 'accountKey')).map(([key, txs]) => ({
           accountKey: parseInt(key),
           accountName: (txs as Transaction[])[0].accountName,
@@ -313,7 +357,7 @@ const HierarchicalReport: React.FC = () => {
         code: 991,
         name: 'ריבית החזר הלוואה',
         type: 'financial',
-        total: _.sumBy(financial991, 'amount'),
+        total: _.sumBy(financial991, 'amount') + loanAdjustment,
         accounts: Object.entries(_.groupBy(financial991, 'accountKey')).map(([key, txs]) => ({
           accountKey: parseInt(key),
           accountName: (txs as Transaction[])[0].accountName,
@@ -328,13 +372,6 @@ const HierarchicalReport: React.FC = () => {
     const totalOperating = _.sumBy(operatingCategories, 'total');
     const totalFinancial = _.sumBy(financialCategories, 'total');
 
-    console.log('💰 סיכומים:');
-    console.log('  הכנסות:', totalRevenue);
-    console.log('  עלות מכר:', totalCOGS);
-    console.log('  הוצאות תפעול:', totalOperating);
-    console.log('  הוצאות מימון:', totalFinancial);
-    console.log('  רווח נקי:', totalRevenue + totalCOGS + totalOperating + totalFinancial);
-
     return {
       categories: [revenueCategory, cogsCategory, ...operatingCategories, ...financialCategories],
       totals: {
@@ -348,7 +385,7 @@ const HierarchicalReport: React.FC = () => {
       },
       dateRange: formattedDateRange
     };
-  }, [transactions, openingInventory, closingInventory]);
+  }, [transactions, openingInventory, closingInventory, adjustments2024Monthly]);
 
   const toggleCategory = (code: string) => {
     setExpandedCategories(prev => {
@@ -386,7 +423,6 @@ const HierarchicalReport: React.FC = () => {
       maximumFractionDigits: 0,
     }).format(absoluteAmount);
     
-    // אם המספר שלילי, נציג אותו בסוגריים
     return isNegative ? `(${formatted})` : formatted;
   };
 
@@ -413,9 +449,8 @@ const HierarchicalReport: React.FC = () => {
         <p className="text-sm text-gray-600 mt-1">תקופה: {dateRange}</p>
       </div>
 
-      {/* כרטיסי סיכום - קומפקטיים */}
+      {/* כרטיסי סיכום */}
       <div className="grid grid-cols-4 gap-3 mb-4">
-        {/* כרטיס הכנסות */}
         <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-300 rounded-lg p-2.5 shadow-sm">
           <div className="flex items-center gap-1.5 mb-1">
             <div className="bg-green-500 rounded-full p-1">
@@ -431,7 +466,6 @@ const HierarchicalReport: React.FC = () => {
           </div>
         </div>
 
-        {/* כרטיס הוצאות - אפור */}
         <div className="bg-gradient-to-br from-gray-50 to-slate-50 border border-gray-300 rounded-lg p-2.5 shadow-sm">
           <div className="flex items-center gap-1.5 mb-1">
             <div className="bg-gray-500 rounded-full p-1">
@@ -449,7 +483,6 @@ const HierarchicalReport: React.FC = () => {
           </div>
         </div>
 
-        {/* כרטיס רווח נקי */}
         <div className="bg-gradient-to-br from-teal-50 to-cyan-50 border border-teal-400 rounded-lg p-2.5 shadow-sm">
           <div className="flex items-center gap-1.5 mb-1">
             <div className="bg-teal-500 rounded-full p-1">
@@ -467,7 +500,6 @@ const HierarchicalReport: React.FC = () => {
           </div>
         </div>
 
-        {/* כרטיס אחוז רווחיות */}
         <div className="bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-400 rounded-lg p-2.5 shadow-sm">
           <div className="flex items-center gap-1.5 mb-1">
             <div className="bg-orange-500 rounded-full p-1">
@@ -607,21 +639,65 @@ const HierarchicalReport: React.FC = () => {
 
               {expandedCategories.has(category.code.toString()) && (
                 <div className="bg-gray-50 p-4">
-                  <div className="bg-white border border-gray-300 rounded-md p-3 mb-2 flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <Edit3 className="w-4 h-4 text-gray-500" />
-                      <span className="text-gray-700 font-medium">מלאי פתיחה</span>
+                  {/* הצגת מלאי אוטומטית מהדוח החודשי */}
+                  <div className="bg-blue-50 rounded-md border border-blue-200 p-3 mb-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Package2 className="w-4 h-4 text-blue-600" />
+                      <span className="text-sm font-semibold text-blue-800">מלאי (אוטומטי מהדוח החודשי)</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        value={openingInventory}
-                        onChange={(e) => setOpeningInventory(parseFloat(e.target.value) || 0)}
-                        className="w-32 px-2 py-1 border border-gray-300 rounded text-right text-sm"
-                      />
-                      <span className="text-gray-700">{formatCurrency(openingInventory)}</span>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-white rounded-md p-2 border border-blue-200">
+                        <div className="text-xs text-gray-600 mb-1">מלאי פתיחה (ינואר)</div>
+                        <div className="text-lg font-bold text-blue-700">
+                          {formatCurrency(openingInventory[1] || 0)}
+                        </div>
+                      </div>
+                      <div className="bg-white rounded-md p-2 border border-blue-200">
+                        <div className="text-xs text-gray-600 mb-1">מלאי סגירה (חודש אחרון)</div>
+                        <div className="text-lg font-bold text-blue-700">
+                          {formatCurrency(
+                            (() => {
+                              const months = Object.keys(closingInventory).map(Number).filter(m => m > 0).sort((a, b) => b - a);
+                              return months.length > 0 ? closingInventory[months[0]] || 0 : 0;
+                            })()
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-xs text-gray-500 mt-2 flex items-center gap-1">
+                      <span>💡</span>
+                      <span>לעדכון המלאי - עבור לדוח החודשי</span>
                     </div>
                   </div>
+
+                  {/* שדה התאמה 2024 */}
+                  <div className="bg-yellow-50 rounded-md border border-amber-300 p-3 mb-3">
+                    <label className="flex items-center gap-2 text-sm font-medium text-amber-800 mb-1">
+                      <Edit3 className="w-3 h-3 text-amber-600" />
+                      התאמה 2024+ (מצטבר)
+                    </label>
+                    <input
+                      type="number"
+                      value={getTotalAdjustment('800')}
+                      onChange={(e) => {
+                        const newValue = Number(e.target.value);
+                        setAdjustments2024Monthly({ 
+                          ...adjustments2024Monthly, 
+                          '800': { 1: newValue }
+                        });
+                      }}
+                      className="w-full px-3 py-2 border border-amber-300 rounded-md text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500 bg-white"
+                      placeholder="0"
+                    />
+                  </div>
+
+                  <button
+                    onClick={saveInventory}
+                    className="mb-3 px-3 py-1.5 bg-amber-600 text-white rounded-md hover:bg-amber-700 flex items-center gap-1.5 text-sm"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    שמור התאמות
+                  </button>
 
                   <div className="bg-white rounded-md border border-gray-200 mb-2">
                     {(category.accounts || []).filter(account => account.total !== 0).map((account) => (
@@ -633,30 +709,6 @@ const HierarchicalReport: React.FC = () => {
                       </div>
                     ))}
                   </div>
-
-                  <div className="bg-white border border-gray-300 rounded-md p-3 mb-2 flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <Edit3 className="w-4 h-4 text-gray-500" />
-                      <span className="text-gray-700 font-medium">מלאי סגירה</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        value={closingInventory}
-                        onChange={(e) => setClosingInventory(parseFloat(e.target.value) || 0)}
-                        className="w-32 px-2 py-1 border border-gray-300 rounded text-right text-sm"
-                      />
-                      <span className="text-gray-700">{formatCurrency(closingInventory)}</span>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={saveInventory}
-                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors text-sm mb-3"
-                  >
-                    <Save className="w-4 h-4" />
-                    שמור מלאי
-                  </button>
 
                   <div className="bg-gray-200 px-4 py-3 flex justify-between rounded-md">
                     <span className="font-bold text-gray-800">סה"כ עלות המכר</span>
@@ -698,7 +750,28 @@ const HierarchicalReport: React.FC = () => {
               </button>
 
               {expandedCategories.has(category.code.toString()) && (
-                <div className="bg-gray-50">
+                <div className="bg-gray-50 p-3">
+                  {/* שדה התאמה 2024 */}
+                  <div className="bg-yellow-50 rounded-md border border-amber-300 p-2 mb-2">
+                    <label className="flex items-center gap-2 text-xs font-medium text-amber-800 mb-1">
+                      <Edit3 className="w-3 h-3 text-amber-600" />
+                      התאמה 2024+ (מצטבר)
+                    </label>
+                    <input
+                      type="number"
+                      value={getTotalAdjustment(String(category.code))}
+                      onChange={(e) => {
+                        const newValue = Number(e.target.value);
+                        setAdjustments2024Monthly({ 
+                          ...adjustments2024Monthly, 
+                          [String(category.code)]: { 1: newValue }
+                        });
+                      }}
+                      className="w-full px-2 py-1.5 border border-amber-300 rounded-md text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500 bg-white"
+                      placeholder="0"
+                    />
+                  </div>
+
                   {(category.accounts || []).filter(account => account.total !== 0).map((account) => (
                     <div key={account.accountKey} className="border-t border-gray-200">
                       <button
@@ -740,7 +813,7 @@ const HierarchicalReport: React.FC = () => {
                       )}
                     </div>
                   ))}
-                  <div className="bg-gray-200 px-4 py-2 flex justify-between">
+                  <div className="bg-gray-200 px-4 py-2 flex justify-between mt-2 rounded-md">
                     <span className="font-bold text-gray-800 text-sm">סה"כ {category.name}</span>
                     <span className="font-bold text-gray-700">{formatCurrency(category.total)}</span>
                   </div>
@@ -780,7 +853,28 @@ const HierarchicalReport: React.FC = () => {
               </button>
 
               {expandedCategories.has(category.code.toString()) && (
-                <div className="bg-gray-50">
+                <div className="bg-gray-50 p-3">
+                  {/* שדה התאמה 2024 */}
+                  <div className="bg-yellow-50 rounded-md border border-amber-300 p-2 mb-2">
+                    <label className="flex items-center gap-2 text-xs font-medium text-amber-800 mb-1">
+                      <Edit3 className="w-3 h-3 text-amber-600" />
+                      התאמה 2024+ (מצטבר)
+                    </label>
+                    <input
+                      type="number"
+                      value={getTotalAdjustment(String(category.code))}
+                      onChange={(e) => {
+                        const newValue = Number(e.target.value);
+                        setAdjustments2024Monthly({ 
+                          ...adjustments2024Monthly, 
+                          [String(category.code)]: { 1: newValue }
+                        });
+                      }}
+                      className="w-full px-2 py-1.5 border border-amber-300 rounded-md text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500 bg-white"
+                      placeholder="0"
+                    />
+                  </div>
+
                   {(category.accounts || []).filter(account => account.total !== 0).map((account) => (
                     <div key={account.accountKey} className="border-t border-gray-200">
                       <button
@@ -822,7 +916,7 @@ const HierarchicalReport: React.FC = () => {
                       )}
                     </div>
                   ))}
-                  <div className="bg-gray-200 px-4 py-2 flex justify-between">
+                  <div className="bg-gray-200 px-4 py-2 flex justify-between mt-2 rounded-md">
                     <span className="font-bold text-gray-800 text-sm">סה"כ {category.name}</span>
                     <span className="font-bold text-gray-700">{formatCurrency(category.total)}</span>
                   </div>
@@ -843,9 +937,8 @@ const HierarchicalReport: React.FC = () => {
           </div>
         </div>
 
-        {/* עמודה ימין - גרפים בלבד */}
+        {/* עמודה ימין - גרפים */}
         <div className="space-y-3 overflow-y-auto" style={{ maxHeight: '55vh' }}>
-          {/* גרף עמודות חודשי */}
           <div className="bg-white border border-gray-200 rounded-lg p-2.5 shadow-sm">
             <div className="flex items-center gap-1.5 mb-1">
               <BarChart3 className="w-3.5 h-3.5 text-blue-600" />
@@ -867,7 +960,6 @@ const HierarchicalReport: React.FC = () => {
             </ResponsiveContainer>
           </div>
 
-          {/* גרף קו - מגמת רווחיות */}
           <div className="bg-white border border-gray-200 rounded-lg p-2.5 shadow-sm">
             <div className="flex items-center gap-1.5 mb-1">
               <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
@@ -890,7 +982,6 @@ const HierarchicalReport: React.FC = () => {
             </ResponsiveContainer>
           </div>
 
-          {/* גרף חדש - הכנסות vs הוצאות שיווק */}
           <div className="bg-white border border-gray-200 rounded-lg p-2.5 shadow-sm">
             <div className="flex items-center gap-1.5 mb-1">
               <BarChart3 className="w-3.5 h-3.5 text-purple-600" />

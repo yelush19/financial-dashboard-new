@@ -57,6 +57,7 @@ const MonthlyReport = () => {
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
   const [openingInventory, setOpeningInventory] = useState<{ [month: number]: number }>({});
   const [closingInventory, setClosingInventory] = useState<{ [month: number]: number }>({});
+  const [adjustments2024, setAdjustments2024] = useState<{ [categoryCode: string]: { [month: number]: number } }>({});
   const [showBiurModal, setShowBiurModal] = useState(false);
   const [biurData, setBiurData] = useState<{ title: string; transactions: Transaction[]; month?: number }>({
     title: '',
@@ -97,6 +98,22 @@ const MonthlyReport = () => {
                 .filter((tx: Transaction) => tx.accountKey !== 0 && tx.date);
               
               setTransactions(parsed);
+              
+              // טעינת נתוני מלאי והתאמות מ-localStorage
+              const savedOpeningInv = localStorage.getItem('openingInventory');
+              const savedClosingInv = localStorage.getItem('closingInventory');
+              const savedAdjustments = localStorage.getItem('adjustments2024');
+              
+              if (savedOpeningInv) {
+                setOpeningInventory(JSON.parse(savedOpeningInv));
+              }
+              if (savedClosingInv) {
+                setClosingInventory(JSON.parse(savedClosingInv));
+              }
+              if (savedAdjustments) {
+                setAdjustments2024(JSON.parse(savedAdjustments));
+              }
+              
               setLoading(false);
             } catch (err) {
               console.error('Error parsing data:', err);
@@ -339,7 +356,29 @@ const MonthlyReport = () => {
   const saveInventory = () => {
     localStorage.setItem('openingInventory', JSON.stringify(openingInventory));
     localStorage.setItem('closingInventory', JSON.stringify(closingInventory));
-    alert('המלאי נשמר בהצלחה!');
+    localStorage.setItem('adjustments2024', JSON.stringify(adjustments2024));
+    alert('הנתונים נשמרו בהצלחה!');
+  };
+
+  const handleClosingInventoryChange = (month: number, value: number) => {
+    const newClosing = { ...closingInventory, [month]: value };
+    setClosingInventory(newClosing);
+    
+    // עדכון אוטומטי של מלאי פתיחה בחודש הבא
+    const nextMonth = month + 1;
+    if (nextMonth <= 12 && monthlyData.months.includes(nextMonth)) {
+      setOpeningInventory(prev => ({ ...prev, [nextMonth]: value }));
+    }
+  };
+
+  const handleAdjustmentChange = (categoryCode: string, month: number, value: number) => {
+    setAdjustments2024(prev => ({
+      ...prev,
+      [categoryCode]: {
+        ...(prev[categoryCode] || {}),
+        [month]: value
+      }
+    }));
   };
 
   const showBiur = (category: CategoryData, month?: number, vendor?: VendorData) => {
@@ -509,19 +548,72 @@ const MonthlyReport = () => {
         <div className={`p-4 rounded-lg border ${CARD_COLORS.cogs}`}>
           <div className="text-sm text-gray-600 mb-1">עלות המכר</div>
           <div className="text-2xl font-bold text-orange-700">
-            {formatCurrency(Math.abs(monthlyData.totals.cogs.total))}
+            {formatCurrency(
+              Math.abs(monthlyData.totals.cogs.total) + 
+              Object.values(openingInventory).reduce((a, b) => a + b, 0) - 
+              Object.values(closingInventory).reduce((a, b) => a + b, 0) +
+              monthlyData.categories
+                .filter(c => c.type === 'cogs')
+                .reduce((sum, cat) => {
+                  return sum + Object.entries(adjustments2024[String(cat.code)] || {})
+                    .reduce((s, [_, val]) => s + val, 0);
+                }, 0)
+            )}
           </div>
         </div>
         <div className={`p-4 rounded-lg border ${CARD_COLORS.opProfit}`}>
           <div className="text-sm text-gray-600 mb-1">רווח תפעולי</div>
           <div className="text-2xl font-bold text-emerald-700">
-            {formatCurrency(monthlyData.totals.operatingProfit.total)}
+            {formatCurrency(
+              (monthlyData.totals.revenue.total - 
+              (Math.abs(monthlyData.totals.cogs.total) + 
+              Object.values(openingInventory).reduce((a, b) => a + b, 0) - 
+              Object.values(closingInventory).reduce((a, b) => a + b, 0) +
+              monthlyData.categories
+                .filter(c => c.type === 'cogs')
+                .reduce((sum, cat) => {
+                  return sum + Object.entries(adjustments2024[String(cat.code)] || {})
+                    .reduce((s, [_, val]) => s + val, 0);
+                }, 0))) -
+              (Math.abs(monthlyData.totals.operating.total) +
+              monthlyData.categories
+                .filter(c => c.type === 'operating')
+                .reduce((sum, cat) => {
+                  return sum + Object.entries(adjustments2024[String(cat.code)] || {})
+                    .reduce((s, [_, val]) => s + val, 0);
+                }, 0))
+            )}
           </div>
         </div>
         <div className={`p-4 rounded-lg border ${CARD_COLORS.netProfit}`}>
           <div className="text-sm text-gray-600 mb-1">רווח נקי</div>
           <div className="text-2xl font-bold text-teal-700">
-            {formatCurrency(monthlyData.totals.netProfit.total)}
+            {formatCurrency(
+              (monthlyData.totals.revenue.total - 
+              (Math.abs(monthlyData.totals.cogs.total) + 
+              Object.values(openingInventory).reduce((a, b) => a + b, 0) - 
+              Object.values(closingInventory).reduce((a, b) => a + b, 0) +
+              monthlyData.categories
+                .filter(c => c.type === 'cogs')
+                .reduce((sum, cat) => {
+                  return sum + Object.entries(adjustments2024[String(cat.code)] || {})
+                    .reduce((s, [_, val]) => s + val, 0);
+                }, 0))) -
+              (Math.abs(monthlyData.totals.operating.total) +
+              monthlyData.categories
+                .filter(c => c.type === 'operating')
+                .reduce((sum, cat) => {
+                  return sum + Object.entries(adjustments2024[String(cat.code)] || {})
+                    .reduce((s, [_, val]) => s + val, 0);
+                }, 0)) -
+              (Math.abs(monthlyData.totals.financial.total) +
+              monthlyData.categories
+                .filter(c => c.type === 'financial')
+                .reduce((sum, cat) => {
+                  return sum + Object.entries(adjustments2024[String(cat.code)] || {})
+                    .reduce((s, [_, val]) => s + val, 0);
+                }, 0))
+            )}
           </div>
         </div>
       </div>
@@ -564,7 +656,7 @@ const MonthlyReport = () => {
                 </th>
               ))}
               <th className="border border-gray-300 px-3 py-3 text-center font-semibold min-w-[130px]">סה"כ</th>
-              <th className="border border-gray-300 px-2 py-3 w-12">📝</th>
+              <th className="border border-gray-300 px-2 py-3 w-12">🔎</th>
             </tr>
           </thead>
           <tbody>
@@ -784,6 +876,56 @@ const MonthlyReport = () => {
                     </td>
                   </tr>
                 ))}
+                
+                <tr className="bg-yellow-50">
+                  <td className="border border-gray-300 px-6 py-2 sticky right-0 bg-yellow-50">
+                    <div className="flex items-center gap-2">
+                      <Edit3 className="w-3 h-3 text-amber-600" />
+                      <span className="font-medium text-amber-800">התאמה 2024+</span>
+                    </div>
+                  </td>
+                  {monthlyData.months.map(m => (
+                    <td key={m} className="border border-gray-300 px-2 py-2 text-center">
+                      <input
+                        type="number"
+                        className="w-24 px-2 py-1 border border-amber-300 rounded text-center text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500 bg-white"
+                        value={adjustments2024[String(cat.code)]?.[m] || 0}
+                        onChange={(e) => handleAdjustmentChange(String(cat.code), m, Number(e.target.value))}
+                        placeholder="0"
+                      />
+                    </td>
+                  ))}
+                  <td className="border border-gray-300 px-3 py-2 text-center font-medium text-amber-800">
+                    {formatCurrency(
+                      Object.entries(adjustments2024[String(cat.code)] || {})
+                        .reduce((sum, [_, val]) => sum + val, 0)
+                    )}
+                  </td>
+                  <td className="border border-gray-300"></td>
+                </tr>
+
+                <tr className="bg-orange-100 border-t-2 border-orange-400">
+                  <td className="border border-gray-300 px-4 py-2 sticky right-0 bg-orange-100 font-semibold text-orange-800">
+                    סה"כ {cat.code} - {cat.name}
+                  </td>
+                  {monthlyData.months.map(m => {
+                    const adjustment = adjustments2024[String(cat.code)]?.[m] || 0;
+                    const total = Math.abs(cat.data[m] || 0) + adjustment;
+                    return (
+                      <td key={m} className="border border-gray-300 px-3 py-2 text-center font-bold text-orange-800">
+                        {formatCurrency(total)}
+                      </td>
+                    );
+                  })}
+                  <td className="border border-gray-300 px-3 py-2 text-center font-bold text-orange-800">
+                    {formatCurrency(
+                      Math.abs(cat.data.total) + 
+                      Object.entries(adjustments2024[String(cat.code)] || {})
+                        .reduce((sum, [_, val]) => sum + val, 0)
+                    )}
+                  </td>
+                  <td className="border border-gray-300"></td>
+                </tr>
               </React.Fragment>
             ))}
 
@@ -800,7 +942,7 @@ const MonthlyReport = () => {
                     type="number"
                     className="w-24 px-2 py-1 border border-gray-300 rounded text-center text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                     value={closingInventory[m] || 0}
-                    onChange={(e) => setClosingInventory({...closingInventory, [m]: Number(e.target.value)})}
+                    onChange={(e) => handleClosingInventoryChange(m, Number(e.target.value))}
                   />
                 </td>
               ))}
@@ -815,7 +957,10 @@ const MonthlyReport = () => {
                 סה"כ עלות המכר
               </td>
               {monthlyData.months.map(m => {
-                const cogsCost = Math.abs(monthlyData.totals.cogs[m] || 0) + (openingInventory[m] || 0) - (closingInventory[m] || 0);
+                const cogsAdjustments = monthlyData.categories
+                  .filter(c => c.type === 'cogs')
+                  .reduce((sum, cat) => sum + (adjustments2024[String(cat.code)]?.[m] || 0), 0);
+                const cogsCost = Math.abs(monthlyData.totals.cogs[m] || 0) + (openingInventory[m] || 0) - (closingInventory[m] || 0) + cogsAdjustments;
                 return (
                   <td key={m} className="border border-gray-300 px-3 py-3 text-center font-bold text-orange-700">
                     {formatCurrency(cogsCost)}
@@ -826,7 +971,13 @@ const MonthlyReport = () => {
                 {formatCurrency(
                   Math.abs(monthlyData.totals.cogs.total) + 
                   Object.values(openingInventory).reduce((a, b) => a + b, 0) - 
-                  Object.values(closingInventory).reduce((a, b) => a + b, 0)
+                  Object.values(closingInventory).reduce((a, b) => a + b, 0) +
+                  monthlyData.categories
+                    .filter(c => c.type === 'cogs')
+                    .reduce((sum, cat) => {
+                      return sum + Object.entries(adjustments2024[String(cat.code)] || {})
+                        .reduce((s, [_, val]) => s + val, 0);
+                    }, 0)
                 )}
               </td>
               <td className="border border-gray-300"></td>
@@ -836,13 +987,31 @@ const MonthlyReport = () => {
               <td className="border border-gray-300 px-4 py-3 font-bold text-green-800 sticky right-0 bg-green-50">
                 💰 רווח גולמי
               </td>
-              {monthlyData.months.map(m => (
-                <td key={m} className="border border-gray-300 px-3 py-3 text-center font-bold text-green-700 text-base">
-                  {formatCurrency(monthlyData.totals.grossProfit[m] || 0)}
-                </td>
-              ))}
+              {monthlyData.months.map(m => {
+                const cogsAdjustments = monthlyData.categories
+                  .filter(c => c.type === 'cogs')
+                  .reduce((sum, cat) => sum + (adjustments2024[String(cat.code)]?.[m] || 0), 0);
+                const cogsCost = Math.abs(monthlyData.totals.cogs[m] || 0) + (openingInventory[m] || 0) - (closingInventory[m] || 0) + cogsAdjustments;
+                const grossProfit = (monthlyData.totals.revenue[m] || 0) - cogsCost;
+                return (
+                  <td key={m} className="border border-gray-300 px-3 py-3 text-center font-bold text-green-700 text-base">
+                    {formatCurrency(grossProfit)}
+                  </td>
+                );
+              })}
               <td className="border border-gray-300 px-3 py-3 text-center font-bold text-green-700 text-lg">
-                {formatCurrency(monthlyData.totals.grossProfit.total)}
+                {formatCurrency(
+                  monthlyData.totals.revenue.total - 
+                  (Math.abs(monthlyData.totals.cogs.total) + 
+                  Object.values(openingInventory).reduce((a, b) => a + b, 0) - 
+                  Object.values(closingInventory).reduce((a, b) => a + b, 0) +
+                  monthlyData.categories
+                    .filter(c => c.type === 'cogs')
+                    .reduce((sum, cat) => {
+                      return sum + Object.entries(adjustments2024[String(cat.code)] || {})
+                        .reduce((s, [_, val]) => s + val, 0);
+                    }, 0))
+                )}
               </td>
               <td className="border border-gray-300"></td>
             </tr>
@@ -940,6 +1109,56 @@ const MonthlyReport = () => {
                     </td>
                   </tr>
                 ))}
+                
+                <tr className="bg-yellow-50">
+                  <td className="border border-gray-300 px-6 py-2 sticky right-0 bg-yellow-50">
+                    <div className="flex items-center gap-2">
+                      <Edit3 className="w-3 h-3 text-amber-600" />
+                      <span className="font-medium text-amber-800">התאמה 2024+</span>
+                    </div>
+                  </td>
+                  {monthlyData.months.map(m => (
+                    <td key={m} className="border border-gray-300 px-2 py-2 text-center">
+                      <input
+                        type="number"
+                        className="w-24 px-2 py-1 border border-amber-300 rounded text-center text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500 bg-white"
+                        value={adjustments2024[String(cat.code)]?.[m] || 0}
+                        onChange={(e) => handleAdjustmentChange(String(cat.code), m, Number(e.target.value))}
+                        placeholder="0"
+                      />
+                    </td>
+                  ))}
+                  <td className="border border-gray-300 px-3 py-2 text-center font-medium text-amber-800">
+                    {formatCurrency(
+                      Object.entries(adjustments2024[String(cat.code)] || {})
+                        .reduce((sum, [_, val]) => sum + val, 0)
+                    )}
+                  </td>
+                  <td className="border border-gray-300"></td>
+                </tr>
+
+                <tr className="bg-gray-100 border-t-2 border-gray-400">
+                  <td className="border border-gray-300 px-4 py-2 sticky right-0 bg-gray-100 font-semibold text-gray-800">
+                    סה"כ {cat.code} - {cat.name}
+                  </td>
+                  {monthlyData.months.map(m => {
+                    const adjustment = adjustments2024[String(cat.code)]?.[m] || 0;
+                    const total = Math.abs(cat.data[m] || 0) + adjustment;
+                    return (
+                      <td key={m} className="border border-gray-300 px-3 py-2 text-center font-bold text-gray-800">
+                        {formatCurrency(total)}
+                      </td>
+                    );
+                  })}
+                  <td className="border border-gray-300 px-3 py-2 text-center font-bold text-gray-800">
+                    {formatCurrency(
+                      Math.abs(cat.data.total) + 
+                      Object.entries(adjustments2024[String(cat.code)] || {})
+                        .reduce((sum, [_, val]) => sum + val, 0)
+                    )}
+                  </td>
+                  <td className="border border-gray-300"></td>
+                </tr>
               </React.Fragment>
             ))}
 
@@ -947,13 +1166,45 @@ const MonthlyReport = () => {
               <td className="border border-gray-300 px-4 py-3 font-bold text-emerald-800 sticky right-0 bg-emerald-50">
                 💼 רווח תפעולי
               </td>
-              {monthlyData.months.map(m => (
-                <td key={m} className="border border-gray-300 px-3 py-3 text-center font-bold text-emerald-700 text-base">
-                  {formatCurrency(monthlyData.totals.operatingProfit[m] || 0)}
-                </td>
-              ))}
+              {monthlyData.months.map(m => {
+                const cogsAdjustments = monthlyData.categories
+                  .filter(c => c.type === 'cogs')
+                  .reduce((sum, cat) => sum + (adjustments2024[String(cat.code)]?.[m] || 0), 0);
+                const cogsCost = Math.abs(monthlyData.totals.cogs[m] || 0) + (openingInventory[m] || 0) - (closingInventory[m] || 0) + cogsAdjustments;
+                const grossProfit = (monthlyData.totals.revenue[m] || 0) - cogsCost;
+                
+                const operatingAdjustments = monthlyData.categories
+                  .filter(c => c.type === 'operating')
+                  .reduce((sum, cat) => sum + (adjustments2024[String(cat.code)]?.[m] || 0), 0);
+                const operatingExpenses = Math.abs(monthlyData.totals.operating[m] || 0) + operatingAdjustments;
+                const operatingProfit = grossProfit - operatingExpenses;
+                
+                return (
+                  <td key={m} className="border border-gray-300 px-3 py-3 text-center font-bold text-emerald-700 text-base">
+                    {formatCurrency(operatingProfit)}
+                  </td>
+                );
+              })}
               <td className="border border-gray-300 px-3 py-3 text-center font-bold text-emerald-700 text-lg">
-                {formatCurrency(monthlyData.totals.operatingProfit.total)}
+                {formatCurrency(
+                  (monthlyData.totals.revenue.total - 
+                  (Math.abs(monthlyData.totals.cogs.total) + 
+                  Object.values(openingInventory).reduce((a, b) => a + b, 0) - 
+                  Object.values(closingInventory).reduce((a, b) => a + b, 0) +
+                  monthlyData.categories
+                    .filter(c => c.type === 'cogs')
+                    .reduce((sum, cat) => {
+                      return sum + Object.entries(adjustments2024[String(cat.code)] || {})
+                        .reduce((s, [_, val]) => s + val, 0);
+                    }, 0))) -
+                  (Math.abs(monthlyData.totals.operating.total) +
+                  monthlyData.categories
+                    .filter(c => c.type === 'operating')
+                    .reduce((sum, cat) => {
+                      return sum + Object.entries(adjustments2024[String(cat.code)] || {})
+                        .reduce((s, [_, val]) => s + val, 0);
+                    }, 0))
+                )}
               </td>
               <td className="border border-gray-300"></td>
             </tr>
@@ -1051,6 +1302,56 @@ const MonthlyReport = () => {
                     </td>
                   </tr>
                 ))}
+                
+                <tr className="bg-yellow-50">
+                  <td className="border border-gray-300 px-6 py-2 sticky right-0 bg-yellow-50">
+                    <div className="flex items-center gap-2">
+                      <Edit3 className="w-3 h-3 text-amber-600" />
+                      <span className="font-medium text-amber-800">התאמה 2024+</span>
+                    </div>
+                  </td>
+                  {monthlyData.months.map(m => (
+                    <td key={m} className="border border-gray-300 px-2 py-2 text-center">
+                      <input
+                        type="number"
+                        className="w-24 px-2 py-1 border border-amber-300 rounded text-center text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500 bg-white"
+                        value={adjustments2024[String(cat.code)]?.[m] || 0}
+                        onChange={(e) => handleAdjustmentChange(String(cat.code), m, Number(e.target.value))}
+                        placeholder="0"
+                      />
+                    </td>
+                  ))}
+                  <td className="border border-gray-300 px-3 py-2 text-center font-medium text-amber-800">
+                    {formatCurrency(
+                      Object.entries(adjustments2024[String(cat.code)] || {})
+                        .reduce((sum, [_, val]) => sum + val, 0)
+                    )}
+                  </td>
+                  <td className="border border-gray-300"></td>
+                </tr>
+
+                <tr className="bg-slate-100 border-t-2 border-slate-400">
+                  <td className="border border-gray-300 px-4 py-2 sticky right-0 bg-slate-100 font-semibold text-slate-800">
+                    סה"כ {cat.code} - {cat.name}
+                  </td>
+                  {monthlyData.months.map(m => {
+                    const adjustment = adjustments2024[String(cat.code)]?.[m] || 0;
+                    const total = Math.abs(cat.data[m] || 0) + adjustment;
+                    return (
+                      <td key={m} className="border border-gray-300 px-3 py-2 text-center font-bold text-slate-800">
+                        {formatCurrency(total)}
+                      </td>
+                    );
+                  })}
+                  <td className="border border-gray-300 px-3 py-2 text-center font-bold text-slate-800">
+                    {formatCurrency(
+                      Math.abs(cat.data.total) + 
+                      Object.entries(adjustments2024[String(cat.code)] || {})
+                        .reduce((sum, [_, val]) => sum + val, 0)
+                    )}
+                  </td>
+                  <td className="border border-gray-300"></td>
+                </tr>
               </React.Fragment>
             ))}
 
@@ -1058,13 +1359,58 @@ const MonthlyReport = () => {
               <td className="border border-gray-300 px-4 py-3 font-bold text-teal-800 sticky right-0 bg-gradient-to-r from-teal-50 to-emerald-50">
                 💰💰 רווח נקי
               </td>
-              {monthlyData.months.map(m => (
-                <td key={m} className="border border-gray-300 px-3 py-3 text-center font-bold text-teal-700 text-base">
-                  {formatCurrency(monthlyData.totals.netProfit[m] || 0)}
-                </td>
-              ))}
+              {monthlyData.months.map(m => {
+                const cogsAdjustments = monthlyData.categories
+                  .filter(c => c.type === 'cogs')
+                  .reduce((sum, cat) => sum + (adjustments2024[String(cat.code)]?.[m] || 0), 0);
+                const cogsCost = Math.abs(monthlyData.totals.cogs[m] || 0) + (openingInventory[m] || 0) - (closingInventory[m] || 0) + cogsAdjustments;
+                const grossProfit = (monthlyData.totals.revenue[m] || 0) - cogsCost;
+                
+                const operatingAdjustments = monthlyData.categories
+                  .filter(c => c.type === 'operating')
+                  .reduce((sum, cat) => sum + (adjustments2024[String(cat.code)]?.[m] || 0), 0);
+                const operatingExpenses = Math.abs(monthlyData.totals.operating[m] || 0) + operatingAdjustments;
+                const operatingProfit = grossProfit - operatingExpenses;
+                
+                const financialAdjustments = monthlyData.categories
+                  .filter(c => c.type === 'financial')
+                  .reduce((sum, cat) => sum + (adjustments2024[String(cat.code)]?.[m] || 0), 0);
+                const financialExpenses = Math.abs(monthlyData.totals.financial[m] || 0) + financialAdjustments;
+                const netProfit = operatingProfit - financialExpenses;
+                
+                return (
+                  <td key={m} className="border border-gray-300 px-3 py-3 text-center font-bold text-teal-700 text-base">
+                    {formatCurrency(netProfit)}
+                  </td>
+                );
+              })}
               <td className="border border-gray-300 px-3 py-3 text-center font-bold text-teal-700 text-xl">
-                {formatCurrency(monthlyData.totals.netProfit.total)}
+                {formatCurrency(
+                  (monthlyData.totals.revenue.total - 
+                  (Math.abs(monthlyData.totals.cogs.total) + 
+                  Object.values(openingInventory).reduce((a, b) => a + b, 0) - 
+                  Object.values(closingInventory).reduce((a, b) => a + b, 0) +
+                  monthlyData.categories
+                    .filter(c => c.type === 'cogs')
+                    .reduce((sum, cat) => {
+                      return sum + Object.entries(adjustments2024[String(cat.code)] || {})
+                        .reduce((s, [_, val]) => s + val, 0);
+                    }, 0))) -
+                  (Math.abs(monthlyData.totals.operating.total) +
+                  monthlyData.categories
+                    .filter(c => c.type === 'operating')
+                    .reduce((sum, cat) => {
+                      return sum + Object.entries(adjustments2024[String(cat.code)] || {})
+                        .reduce((s, [_, val]) => s + val, 0);
+                    }, 0)) -
+                  (Math.abs(monthlyData.totals.financial.total) +
+                  monthlyData.categories
+                    .filter(c => c.type === 'financial')
+                    .reduce((sum, cat) => {
+                      return sum + Object.entries(adjustments2024[String(cat.code)] || {})
+                        .reduce((s, [_, val]) => s + val, 0);
+                    }, 0))
+                )}
               </td>
               <td className="border border-gray-300"></td>
             </tr>
@@ -1085,8 +1431,10 @@ const MonthlyReport = () => {
           <li>• לחץ על <Plus className="w-3 h-3 inline mx-1" /> כדי לפתוח פירוט ספקים/לקוחות</li>
           <li>• לחץ על <FileText className="w-3 h-3 inline mx-1" /> לצפייה בביאור מפורט של כל התנועות</li>
           <li>• לחץ על סכום בטבלה לראות ביאור חודשי ספציפי</li>
-          <li>• ערוך את המלאי בשדות הכחולים ולחץ על "שמור מלאי" לשמירה</li>
-          <li>• השתמש ב"ייצא ל-CSV" לייצוא הדוח לאקסל</li>
+          <li>• <span className="font-semibold">מלאי:</span> ערוך בשדות הכחולים - שינוי מלאי סגירה מעדכן אוטומטית מלאי פתיחה בחודש הבא</li>
+          <li>• <span className="font-semibold">התאמות 2024+:</span> הזן מספרים (חיוביים או שליליים) לכל קוד מיון להתאמת ההוצאות</li>
+          <li>• לחץ על "שמור מלאי" לשמירת כל הנתונים (מלאי + התאמות)</li>
+          <li>• השתמש ב"ייצא ל-CSV" ליייצוא הדוח לאקסל</li>
         </ul>
       </div>
 
