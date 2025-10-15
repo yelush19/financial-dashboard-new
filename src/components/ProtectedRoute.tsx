@@ -3,9 +3,12 @@ import { supabase } from '../lib/supabaseClient';
 
 // 🔐 רשימת מיילים מורשים - ערוך אותה לפי הצורך!
 const ALLOWED_EMAILS = [
-  'admin@example.com',
-  'user@example.com',
-  'litay@modi.com', // דוגמה - שנה למייל שלך!
+  'yelena@litay.co.il',
+  'ksafim@modibodi.co.il',
+  'info@modibodi.co.il',
+  'itamar@modibodi.co.il',
+  'yelush19@gmail.com',
+  'newuser@company.com',
 ];
 
 interface ProtectedRouteProps {
