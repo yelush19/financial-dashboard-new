@@ -670,7 +670,7 @@ const HierarchicalReport: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* שדה התאמה 2024 */}
+                  {/* שדה התאמה 2024 - עם תמיכה במספרים שליליים */}
                   <div className="bg-yellow-50 rounded-md border border-amber-300 p-3 mb-3">
                     <label className="flex items-center gap-2 text-sm font-medium text-amber-800 mb-1">
                       <Edit3 className="w-3 h-3 text-amber-600" />
@@ -678,6 +678,7 @@ const HierarchicalReport: React.FC = () => {
                     </label>
                     <input
                       type="number"
+                      step="any"
                       value={getTotalAdjustment('800')}
                       onChange={(e) => {
                         const newValue = Number(e.target.value);
@@ -751,7 +752,7 @@ const HierarchicalReport: React.FC = () => {
 
               {expandedCategories.has(category.code.toString()) && (
                 <div className="bg-gray-50 p-3">
-                  {/* שדה התאמה 2024 */}
+                  {/* שדה התאמה 2024 - עם תמיכה במספרים שליליים */}
                   <div className="bg-yellow-50 rounded-md border border-amber-300 p-2 mb-2">
                     <label className="flex items-center gap-2 text-xs font-medium text-amber-800 mb-1">
                       <Edit3 className="w-3 h-3 text-amber-600" />
@@ -759,6 +760,7 @@ const HierarchicalReport: React.FC = () => {
                     </label>
                     <input
                       type="number"
+                      step="any"
                       value={getTotalAdjustment(String(category.code))}
                       onChange={(e) => {
                         const newValue = Number(e.target.value);
@@ -854,7 +856,7 @@ const HierarchicalReport: React.FC = () => {
 
               {expandedCategories.has(category.code.toString()) && (
                 <div className="bg-gray-50 p-3">
-                  {/* שדה התאמה 2024 */}
+                  {/* שדה התאמה 2024 - עם תמיכה במספרים שליליים */}
                   <div className="bg-yellow-50 rounded-md border border-amber-300 p-2 mb-2">
                     <label className="flex items-center gap-2 text-xs font-medium text-amber-800 mb-1">
                       <Edit3 className="w-3 h-3 text-amber-600" />
@@ -862,6 +864,7 @@ const HierarchicalReport: React.FC = () => {
                     </label>
                     <input
                       type="number"
+                      step="any"
                       value={getTotalAdjustment(String(category.code))}
                       onChange={(e) => {
                         const newValue = Number(e.target.value);
