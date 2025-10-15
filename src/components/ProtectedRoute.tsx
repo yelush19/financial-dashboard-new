@@ -113,9 +113,15 @@ const LoginPage = () => {
             />
           </div>
           <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 text-white py-3 rounded-md hover:bg-blue-700 disabled:bg-gray-400 font-medium transition-colors"
+  type="submit"
+  disabled={loading}
+  style={{
+    background: loading 
+      ? 'linear-gradient(135deg, #9ca3af 0%, #6b7280 100%)' 
+      : 'linear-gradient(135deg, #2d5f3f 0%, #528163 100%)'
+  }}
+  className="w-full text-white py-4 rounded-lg hover:opacity-90 disabled:opacity-50 font-bold transition-all hover:scale-105 active:scale-95 shadow-lg disabled:cursor-not-allowed"
+
           >
             {loading ? 'שולח...' : 'שלח קישור כניסה'}
           </button>
