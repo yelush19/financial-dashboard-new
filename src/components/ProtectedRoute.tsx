@@ -137,7 +137,7 @@ const LoginPage = () => {
             }}
             className="w-full text-white py-4 rounded-lg hover:opacity-90 disabled:opacity-50 font-bold transition-all hover:scale-105 active:scale-95 shadow-lg disabled:cursor-not-allowed"
           >
-            {loading ? 'מתחבר...' : 'שלח קישור כניסה'}
+           {loading ? 'מתחבר...' : 'כניסה'}
           </button>
         </form>
         {message && (
