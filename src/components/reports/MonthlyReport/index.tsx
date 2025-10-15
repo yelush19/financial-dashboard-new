@@ -30,8 +30,7 @@ import { InventoryRow } from './InventoryRow';
 import { AdjustmentRow } from './AdjustmentRow';
 
 // ============ MAIN COMPONENT ============
-export const MonthlyReport: React.FC = () => {
-  // ============ STATE ============
+const MonthlyReport: React.FC = () => {  // ============ STATE ============
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1045,3 +1044,4 @@ export const MonthlyReport: React.FC = () => {
     </div>
   );
 };
+export default MonthlyReport;
