@@ -2,17 +2,6 @@ import React, { useState, useMemo } from 'react';
 
 const MONTH_NAMES_SHORT = ['ינו', 'פבר', 'מרץ', 'אפר', 'מאי', 'יוני', 'יולי', 'אוג', 'ספט', 'אוק', 'נוב', 'דצמ'];
 
-interface CodeGroup {
-  code: string;
-  name: string;
-  accounts: {
-    accountKey: number;
-    accountName: string;
-    transactions: any[];
-    total: number;
-  }[];
-  total?: number;
-}
 interface TrialBalanceRecord {
   accountKey: number;
   accountName: string;
@@ -23,7 +12,6 @@ interface TrialBalanceRecord {
 
 interface BalancesTabProps {
   trialBalance: TrialBalanceRecord[];
-  dataByCode: CodeGroup[];
   activeMonths: number[];
   formatCurrency: (amount: number) => string;
 }
