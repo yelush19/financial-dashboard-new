@@ -99,6 +99,22 @@ interface ValidationResult {
   };
 }
 
+// 🆕 ממשק לבדיקת עקביות
+interface ComparisonResult {
+  isMatch: boolean;
+  biurimTotal: number;
+  balanceTotal: number;
+  totalDiff: number;
+  codeIssues: Array<{
+    code: string;
+    name: string;
+    diff: number;
+    biurimTotal: number;
+    balanceTotal: number;
+    severity: 'high' | 'medium' | 'low';
+  }>;
+}
+
 // ==========================================
 // קומפוננטה ראשית
 // ==========================================
@@ -109,7 +125,10 @@ const BiurimSystem: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'biurim' | 'balances' | 'comparison' | 'analytics' | 'alerts'>('biurim');
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
   const [showValidationModal, setShowValidationModal] = useState(false);
-
+  
+  // 🆕 State לבדיקת עקביות
+  const [comparisonResult, setComparisonResult] = useState<ComparisonResult | null>(null);
+  const [showConsistencyDetails, setShowConsistencyDetails] = useState(false);
 
   // ==========================================
   // 🔧 פונקציית עיצוב מטבע - מעודכנת להצגת סוגריים
@@ -130,7 +149,11 @@ const BiurimSystem: React.FC = () => {
   // טעינת נתונים
   // ==========================================
   useEffect(() => {
-    loadTransactions();
+    const loadData = async () => {
+      await loadTransactions();
+      await loadTrialBalance();
+    };
+    loadData();
   }, []);
 
   const loadTransactions = async () => {
@@ -148,7 +171,7 @@ const BiurimSystem: React.FC = () => {
           console.log('📊 סה"כ שורות בקובץ:', allRows.length);
 
           // ==========================================
-          // 🆕 זיהוי בלוק סיכום - מותאם למבנה האמיתי
+          // זיהוי בלוק סיכום - מותאם למבנה האמיתי
           // ==========================================
           let summaryBlock = {
             found: false,
@@ -157,17 +180,12 @@ const BiurimSystem: React.FC = () => {
             expectedSum: 0
           };
 
-          // מחפשים את שורת "סה"כ לדו"ח"
           const summaryStartIndex = allRows.findIndex(row => {
             const title = (row['כותרת'] || '').toString();
             return title.includes('סה"כ לדו"ח') || title.includes('סה״כ לדו״ח');
           });
 
           if (summaryStartIndex > 0) {
-            // שורה 17407: "סה"כ לדו"ח"
-            // שורה 17408: הסכום (-70,211.65)
-            // שורה 17409: "מספר תנועות בדו"ח 17406"
-            
             // מחלצים את הסכום מהשורה הבאה
             if (summaryStartIndex + 1 < allRows.length) {
               const sumRow = allRows[summaryStartIndex + 1];
@@ -210,7 +228,7 @@ const BiurimSystem: React.FC = () => {
           };
 
           // ==========================================
-          // 🆕 סינון שורות - כולל שורות סיכום
+          // סינון שורות - כולל שורות סיכום
           // ==========================================
           const dataRowsEnd = summaryBlock.found ? summaryBlock.startRow : allRows.length;
           const dataRows = allRows.slice(0, dataRowsEnd);
@@ -219,10 +237,12 @@ const BiurimSystem: React.FC = () => {
           
           validation.totalRejected = allRows.length - dataRows.length; // שורות הסיכום
 
+          const accountToSortCodeMap = new Map<number, {code: number, name: string}>();
+
           const parsed = dataRows
             .map((row: any, index: number) => {
-              // תיקון: שימוש רק בת.ערך (לא בתאריך 3)
-              const dateStr = row['ת.ערך'] || '';
+              // ✅ תיקון קריטי: שימוש ב-ת.אסמכ (תאריך אסמכתא) ולא ת.ערך!
+              const dateStr = row['ת.אסמכ'] || '';
               const parts = dateStr.split('/');
               const month = parts.length >= 2 ? parseInt(parts[1]) : 0;
 
@@ -263,14 +283,22 @@ const BiurimSystem: React.FC = () => {
                 return null;
               }
 
-              // 🔴 תיקון: amount צריך לבוא מעמודת "חובה / זכות (שקל)" ולא מ"תנועה"!
+              // תיקון: amount צריך לבוא מעמודת "חובה / זכות (שקל)" ולא מ"תנועה"!
               const amount = parseFloat((row['חובה / זכות (שקל)'] || '0').toString().replace(/,/g, ''));
               const movementNumber = parseFloat(row['תנועה'] || '0'); // מספר תנועה סידורי
+
+              // מיפוי sortCode
+              if (accountKey && sortCode) {
+                accountToSortCodeMap.set(accountKey, {
+                  code: sortCode,
+                  name: row['שם קוד מיון'] || SORT_CODE_NAMES[sortCodeStr] || `קוד ${sortCode}`
+                });
+              }
 
               return {
                 title: row['כותרת'] || '',
                 movement: movementNumber,  // מספר תנועה סידורי
-                valueDate: row['ת.ערך'] || '',
+                valueDate: row['ת.אסמכ'] || '',  // ✅ תאריך אסמכתא
                 details: row['פרטים'] || '',
                 accountKey,
                 accountName: row['שם חשבון'] || '',
@@ -284,7 +312,7 @@ const BiurimSystem: React.FC = () => {
             .filter((item): item is Transaction => item !== null);
 
           // ==========================================
-          // 🆕 חישוב וסיכום ASIS
+          // חישוב וסיכום ASIS
           // ==========================================
           validation.totalLoaded = parsed.length;
           validation.actualSum = parsed.reduce((sum, tx) => sum + tx.amount, 0);
@@ -310,15 +338,13 @@ const BiurimSystem: React.FC = () => {
 
           console.log('✅ טעינת תנועות הושלמה:', parsed.length);
           
-          console.log('🔍 לפני קריאה ל-loadTrialBalanceWithMapping - parsed.length:', parsed.length);
-          console.log('🔍 דוגמה לתנועה:', parsed[0]);
-          
           setTransactions(parsed);
           setValidationResult(validation);
           setShowValidationModal(true);
+
+          // שמירת מיפוי במשתנה גלובלי זמני
+          (window as any).__accountToSortCodeMap = accountToSortCodeMap;
           
-          // 🆕 טען מאזן בוחן עם המיפוי מהתנועות
-          loadTrialBalanceWithMapping(parsed);
           setLoading(false);
         },
       });
@@ -328,65 +354,40 @@ const BiurimSystem: React.FC = () => {
     }
   };
 
-  const loadTrialBalanceWithMapping = async (transactionsData: Transaction[]) => {
+  const loadTrialBalance = async () => {
     try {
       const response = await fetch('/BalanceMonthlyModi.csv');
       const text = await response.text();
+
+      console.log('📦 מתחיל לטעון מאזן בוחן...');
 
       Papa.parse(text, {
         header: false,
         skipEmptyLines: true,
         complete: (results) => {
-          const rows = (results.data as any[]).slice(1);
-
-          // 🆕 יצירת מיפוי sortCode מהתנועות (מה-state הנוכחי)
-          const accountToSortCode = new Map<number, { code: number, name: string }>();
-         transactionsData.forEach(tx => {
-            if (!accountToSortCode.has(tx.accountKey)) {
-              accountToSortCode.set(tx.accountKey, {
-                code: tx.sortCode,
-                name: tx.sortCodeName
-              });
-            }
-          });
-
-          console.log('🗺️ מיפוי sortCode נוצר:', accountToSortCode.size, 'חשבונות');
+          const rows = results.data as any[][];
+          
+          // קריאת מיפוי sortCode
+          const accountToSortCodeMap = (window as any).__accountToSortCodeMap || new Map();
 
           const validRows: TrialBalanceRecord[] = [];
-          
-          rows.forEach((row: any) => {
-            const accountKey = parseInt(row[4] || '0');
-            const accountName = (row[5] || '').toString().trim();
 
-            if (!accountKey || accountKey === 0 || !accountName) return;
-            if (accountName.includes('סה"כ') || accountName.includes('סה״כ')) return;
+          rows.forEach((row, index) => {
+            if (index === 0) return;
+            
+            const accountKey = parseInt(row[4] || '0');
+            if (!accountKey || accountKey === 0) return;
+
+            const accountName = row[5] || '';
 
             const parseAmount = (val: any): number => {
-              if (!val || val === '') return 0;
-              const cleaned = val.toString().replace(/,/g, '').trim();
-              const num = parseFloat(cleaned);
+              if (!val) return 0;
+              const str = val.toString().replace(/,/g, '');
+              const num = parseFloat(str);
               return isNaN(num) ? 0 : num;
             };
 
-            // 🔍 לוג לבדיקה - חשבון 40000
-            if (accountKey === 40000) {
-              console.log('🔍 חשבון 40000 - שורה גולמית:', {
-                accountKey: row[4],
-                accountName: row[5],
-                opening: row[6],
-                jan: row[7],
-                feb: row[8],
-                mar: row[9],
-                apr: row[10],
-                may: row[11],
-                jun: row[12],
-                jul: row[13],
-                aug: row[14]
-              });
-            }
-
-            // 🆕 הוספת sortCode למאזן בוחן
-            const sortCodeInfo = accountToSortCode.get(accountKey) || { code: 0, name: '' };
+            const sortCodeInfo = accountToSortCodeMap.get(accountKey) || { code: 0, name: '' };
 
             validRows.push({
               accountKey: accountKey,
@@ -394,43 +395,23 @@ const BiurimSystem: React.FC = () => {
               sortCode: sortCodeInfo.code,
               sortCodeName: sortCodeInfo.name,
               months: {
-                1: parseAmount(row[7]),   // ✅ ינואר
-                2: parseAmount(row[8]),   // ✅ פברואר
-                3: parseAmount(row[9]),   // ✅ מרץ
-                4: parseAmount(row[10]),  // ✅ אפריל
-                5: parseAmount(row[11]),  // ✅ מאי
-                6: parseAmount(row[12]),  // ✅ יוני
-                7: parseAmount(row[13]),  // ✅ יולי
-                8: parseAmount(row[14]),  // ✅ אוגוסט
-                9: parseAmount(row[15]),  // ✅ ספטמבר
-                10: parseAmount(row[16]), // ✅ אוקטובר
-                11: parseAmount(row[17]), // ✅ נובמבר
-                12: parseAmount(row[18])  // ✅ דצמבר
+                1: parseAmount(row[7]),
+                2: parseAmount(row[8]),
+                3: parseAmount(row[9]),
+                4: parseAmount(row[10]),
+                5: parseAmount(row[11]),
+                6: parseAmount(row[12]),
+                7: parseAmount(row[13]),
+                8: parseAmount(row[14]),
+                9: parseAmount(row[15]),
+                10: parseAmount(row[16]),
+                11: parseAmount(row[17]),
+                12: parseAmount(row[18])
               }
             });
           });
 
           console.log('✅ טעינת מאזן בוחן הושלמה:', validRows.length);
-          
-          // 🔍 לוג לבדיקה - הצג את חשבון 40000
-          const account40000 = validRows.find(r => r.accountKey === 40000);
-          if (account40000) {
-            console.log('📊 חשבון 40000 (הכנסות):', {
-              accountKey: account40000.accountKey,
-              accountName: account40000.accountName,
-              sortCode: account40000.sortCode,
-              sortCodeName: account40000.sortCodeName,
-              jan: account40000.months[1],
-              feb: account40000.months[2],
-              mar: account40000.months[3],
-              apr: account40000.months[4],
-              may: account40000.months[5],
-              jun: account40000.months[6],
-              jul: account40000.months[7],
-              aug: account40000.months[8]
-            });
-          }
-          
           setTrialBalance(validRows);
         },
       });
@@ -440,39 +421,19 @@ const BiurimSystem: React.FC = () => {
   };
 
   // ==========================================
-  // סינון תנועות מבטלות
+  // סינון תנועות מבטלות (קיים)
   // ==========================================
   const filteredTransactions = useMemo(() => {
-    if (!transactions.length) return [];
-
-    const sorted = [...transactions].sort((a, b) => {
-      if (a.accountKey !== b.accountKey) return a.accountKey - b.accountKey;
-      const [dayA, monthA] = a.valueDate.split('/');
-      const [dayB, monthB] = b.valueDate.split('/');
-      const dateA = new Date(2024, parseInt(monthA) - 1, parseInt(dayA));
-      const dateB = new Date(2024, parseInt(monthB) - 1, parseInt(dayB));
-      return dateA.getTime() - dateB.getTime();
-    });
-
-    const getDaysFromStart = (dateStr: string) => {
-      const [day, month] = dateStr.split('/');
-      const date = new Date(2024, parseInt(month) - 1, parseInt(day));
-      const start = new Date(2024, 0, 1);
-      return Math.floor((date.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-    };
-
     const groups = new Map<string, { transactions: Transaction[], sum: number }>();
-    
-    sorted.forEach(tx => {
-      const days = getDaysFromStart(tx.valueDate);
-      const weekNum = Math.floor(days / 7);
-      const key = `${tx.accountKey}_week${weekNum}`;
+
+    transactions.forEach(tx => {
+      const weekKey = `${tx.accountKey}_${tx.sortCode}_${Math.floor(tx.movement / 7)}`;
       
-      if (!groups.has(key)) {
-        groups.set(key, { transactions: [], sum: 0 });
+      if (!groups.has(weekKey)) {
+        groups.set(weekKey, { transactions: [], sum: 0 });
       }
-      
-      const group = groups.get(key)!;
+
+      const group = groups.get(weekKey)!;
       group.transactions.push(tx);
       group.sum += tx.amount;
     });
@@ -517,7 +478,6 @@ const BiurimSystem: React.FC = () => {
         name: SORT_CODE_NAMES[code] || `קוד ${code}`,
         accounts: [],
         total: 0
-        
       });
     });
 
@@ -559,6 +519,68 @@ const BiurimSystem: React.FC = () => {
   }, [filteredTransactions]);
 
   // ==========================================
+  // 🆕 בדיקת עקביות - חישוב השוואה
+  // ==========================================
+  const consistencyCheck = useMemo((): ComparisonResult => {
+    // 1. סכום מביאורים (מהתנועות)
+    const biurimTotal = dataByCode.reduce((sum, code) => {
+      const codeTotal = code.accounts.reduce((s, acc) => s + acc.total, 0);
+      return sum + codeTotal;
+    }, 0);
+
+    // 2. סכום ממאזן בוחן
+    const balanceTotal = trialBalance.reduce((sum, tb) => {
+      const tbTotal = activeMonths.reduce((s, month) => s + (tb.months[month] || 0), 0);
+      return sum + tbTotal;
+    }, 0);
+
+    // 3. חישוב הפרש
+    const totalDiff = Math.abs(biurimTotal - balanceTotal);
+    const isMatch = totalDiff <= 5; // סף 5 ₪
+
+    // 4. זיהוי בעיות לפי קוד מיון
+    const codeIssues: Array<any> = [];
+    
+    dataByCode.forEach(code => {
+      const biurimCodeTotal = code.accounts.reduce((s, acc) => s + acc.total, 0);
+      
+      const balanceCodeTotal = trialBalance
+        .filter(tb => tb.sortCode.toString() === code.code)
+        .reduce((sum, tb) => {
+          return sum + activeMonths.reduce((s, m) => s + (tb.months[m] || 0), 0);
+        }, 0);
+      
+      const diff = Math.abs(biurimCodeTotal - balanceCodeTotal);
+      
+      if (diff > 5) {
+        codeIssues.push({
+          code: code.code,
+          name: code.name,
+          diff: diff,
+          biurimTotal: biurimCodeTotal,
+          balanceTotal: balanceCodeTotal,
+          severity: diff > 1000 ? 'high' : diff > 100 ? 'medium' : 'low'
+        });
+      }
+    });
+
+    return {
+      isMatch,
+      biurimTotal,
+      balanceTotal,
+      totalDiff,
+      codeIssues
+    };
+  }, [dataByCode, trialBalance, activeMonths]);
+
+  // שמירה ב-state
+  useEffect(() => {
+    if (consistencyCheck) {
+      setComparisonResult(consistencyCheck);
+    }
+  }, [consistencyCheck]);
+
+  // ==========================================
   // Loading Screen
   // ==========================================
   if (loading) {
@@ -580,7 +602,7 @@ const BiurimSystem: React.FC = () => {
   // Render
   // ==========================================
   return (
-    <div className="container">
+    <div style={{ direction: 'rtl', padding: '1.5rem' }}>
       <h1 style={{ 
         fontSize: '32px', 
         fontWeight: 'bold', 
@@ -679,48 +701,127 @@ const BiurimSystem: React.FC = () => {
         </button>
       </div>
 
-      {/* תוכן הטאב - תיקון כאן! */}
-      <div className="tab-content">
-        {activeTab === 'biurim' && (
-          <BiurimTab 
-            dataByCode={dataByCode}
-            formatCurrency={formatCurrency}
-          />
-        )}
-        {activeTab === 'balances' && (
-          <BalancesTab 
-            trialBalance={trialBalance}
-            activeMonths={activeMonths}
-            formatCurrency={formatCurrency}
-          />
-        )}
-        {activeTab === 'comparison' && (
-          <ComparisonTab 
-            transactions={filteredTransactions}
-            trialBalance={trialBalance}
-            activeMonths={activeMonths}
-            formatCurrency={formatCurrency}
-          />
-        )}
-        {activeTab === 'analytics' && (
-          <AnalyticsTab 
-            dataByCode={dataByCode}
-            transactions={filteredTransactions}
-            formatCurrency={formatCurrency}
-          />
-        )}
-        {activeTab === 'alerts' && (
-          <AlertsSystem 
-            transactions={filteredTransactions}
-            trialBalance={trialBalance}
-            formatCurrency={formatCurrency}
-          />
-        )}
-      </div>
+      {/* 🆕 כרטיס בדיקת עקביות */}
+      {comparisonResult && (
+        <div 
+          style={{
+            background: comparisonResult.isMatch ? '#f0fdf4' : '#fef2f2',
+            border: `2px solid ${comparisonResult.isMatch ? '#10b981' : '#dc2626'}`,
+            borderRadius: '12px',
+            padding: '1rem',
+            marginBottom: '1.5rem',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+          }}
+          onClick={() => {
+            if (!comparisonResult.isMatch) {
+              setShowConsistencyDetails(!showConsistencyDetails);
+            }
+          }}
+        >
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'space-between' 
+          }}>
+            <div>
+              <div style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '0.5rem' }}>
+                {comparisonResult.isMatch ? '✅' : '❌'} בדיקת עקביות נתונים
+              </div>
+              <div style={{ fontSize: '14px', color: '#6b7280' }}>
+                הפרש: {formatCurrency(comparisonResult.totalDiff)}
+              </div>
+            </div>
+            {!comparisonResult.isMatch && (
+              <div style={{ 
+                background: '#dc2626',
+                color: 'white',
+                padding: '0.5rem 1rem',
+                borderRadius: '8px',
+                fontSize: '14px',
+                fontWeight: 'bold'
+              }}>
+                {comparisonResult.codeIssues.length} בעיות
+              </div>
+            )}
+          </div>
 
-      {/* מודל אימות נתונים */}
-      {showValidationModal && validationResult && (
-        <DataValidationModal 
+          {/* פירוט בעיות - נפתח בלחיצה */}
+          {showConsistencyDetails && !comparisonResult.isMatch && (
+            <div style={{ 
+              marginTop: '1rem', 
+              paddingTop: '1rem', 
+              borderTop: '1px solid #fca5a5' 
+            }}>
+              <div style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '0.5rem' }}>
+                📊 קודי מיון בעייתיים:
+              </div>
+              {comparisonResult.codeIssues.map(issue => (
+                <div 
+                  key={issue.code}
+                  style={{ 
+                    padding: '0.5rem',
+                    background: 'white',
+                    borderRadius: '6px',
+                    marginBottom: '0.5rem',
+                    fontSize: '13px'
+                  }}
+                >
+                  <div style={{ fontWeight: 'bold' }}>
+                    קוד {issue.code} - {issue.name}
+                  </div>
+                  <div style={{ color: '#6b7280' }}>
+                    הפרש: {formatCurrency(issue.diff)} | 
+                    ביאורים: {formatCurrency(issue.biurimTotal)} | 
+                    מאזן: {formatCurrency(issue.balanceTotal)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* תוכן הטאב */}
+      {activeTab === 'biurim' && (
+        <BiurimTab
+          dataByCode={dataByCode}
+          formatCurrency={formatCurrency}
+        />
+      )}
+      {activeTab === 'balances' && (
+        <BalancesTab
+          trialBalance={trialBalance}
+          activeMonths={activeMonths}
+          formatCurrency={formatCurrency}
+        />
+      )}
+      {activeTab === 'comparison' && (
+        <ComparisonTab
+          transactions={filteredTransactions}
+          trialBalance={trialBalance}
+          activeMonths={activeMonths}
+          formatCurrency={formatCurrency}
+        />
+      )}
+      {activeTab === 'analytics' && (
+        <AnalyticsTab
+          dataByCode={dataByCode}
+          transactions={filteredTransactions}
+          formatCurrency={formatCurrency}
+        />
+      )}
+      {activeTab === 'alerts' && (
+        <AlertsSystem
+          transactions={filteredTransactions}
+          trialBalance={trialBalance}
+          formatCurrency={formatCurrency}
+        />
+      )}
+
+      {/* DataValidationModal */}
+      {validationResult && (
+        <DataValidationModal
           isOpen={showValidationModal}
           onClose={() => setShowValidationModal(false)}
           result={validationResult}
