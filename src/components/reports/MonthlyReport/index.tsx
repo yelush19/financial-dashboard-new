@@ -1,7 +1,7 @@
 // src/components/reports/MonthlyReport/index.tsx
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { ChevronDown, ChevronRight, ChevronLeft, Save, Download, TrendingUp, AlertCircle } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronLeft, Save, Download, TrendingUp, AlertCircle, Edit3 } from 'lucide-react';
 import Papa from 'papaparse';
 import _ from 'lodash';
 
@@ -28,9 +28,12 @@ import { CategoryRow } from './CategoryRow';
 import { VendorRow } from './VendorRow';
 import { InventoryRow } from './InventoryRow';
 import { AdjustmentRow } from './AdjustmentRow';
+import { InventoryBackupControls } from './InventoryBackupControls';
+import { InventoryEditorModal } from './InventoryEditorModal';
 
 // ============ MAIN COMPONENT ============
-const MonthlyReport: React.FC = () => {  // ============ STATE ============
+const MonthlyReport: React.FC = () => {
+  // ============ STATE ============
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +47,7 @@ const MonthlyReport: React.FC = () => {  // ============ STATE ============
     title: '',
     transactions: []
   });
+  const [showInventoryEditor, setShowInventoryEditor] = useState(false);
 
   // ============ LOAD DATA ============
   useEffect(() => {
@@ -326,6 +330,63 @@ const MonthlyReport: React.FC = () => {  // ============ STATE ============
     localStorage.setItem(STORAGE_KEYS.CLOSING_INVENTORY, JSON.stringify(closingInventory));
     localStorage.setItem(STORAGE_KEYS.ADJUSTMENTS_2024, JSON.stringify(adjustments2024));
     alert('הנתונים נשמרו בהצלחה!');
+  };
+
+  // ============ פונקציות המרה בין פורמטים ============
+  
+  // המרה מפורמט מספרי לפורמט YYYY-MM
+  const convertToYearMonth = (inventory: Inventory): { [key: string]: number } => {
+    const result: { [key: string]: number } = {};
+    Object.entries(inventory).forEach(([key, value]) => {
+      if (typeof key === 'number' || !key.includes('-')) {
+        // פורמט ישן - המר ל-YYYY-MM
+        const monthNum = typeof key === 'string' ? parseInt(key) : key;
+        const yearMonthKey = `2025-${String(monthNum).padStart(2, '0')}`;
+        result[yearMonthKey] = value;
+      } else {
+        // פורמט חדש - השאר כמו שזה
+        result[key] = value;
+      }
+    });
+    return result;
+  };
+  
+  // המרה מפורמט YYYY-MM לפורמט מספרי
+  const convertFromYearMonth = (inventory: { [key: string]: number }): Inventory => {
+    const result: Inventory = {};
+    Object.entries(inventory).forEach(([key, value]) => {
+      if (key.includes('-')) {
+        // פורמט YYYY-MM - קח רק את החודש
+        const [year, monthStr] = key.split('-');
+        const month = parseInt(monthStr);
+        
+        // אם זה שנת 2025, שמור כמספר
+        if (year === '2025') {
+          result[month] = value;
+        } else {
+          // אם זה שנה אחרת, שמור כ-string
+          result[key as any] = value;
+        }
+      } else {
+        // כבר בפורמט נכון
+        result[key as any] = value;
+      }
+    });
+    return result;
+  };
+
+  // טיפול בשמירה מהמודל
+  const handleInventorySave = (opening: { [key: string]: number }, closing: { [key: string]: number }) => {
+    // המרה חזרה לפורמט של המערכת
+    const convertedOpening = convertFromYearMonth(opening);
+    const convertedClosing = convertFromYearMonth(closing);
+    
+    setOpeningInventory(convertedOpening);
+    setClosingInventory(convertedClosing);
+    
+    // שמירה אוטומטית ל-localStorage
+    localStorage.setItem(STORAGE_KEYS.OPENING_INVENTORY, JSON.stringify(convertedOpening));
+    localStorage.setItem(STORAGE_KEYS.CLOSING_INVENTORY, JSON.stringify(convertedClosing));
   };
 
   const handleClosingInventoryChange = (month: number, value: number) => {
@@ -631,6 +692,28 @@ const MonthlyReport: React.FC = () => {  // ============ STATE ============
 
             {!collapsedSections.has('cogs') && (
               <>
+                <tr>
+                  <td colSpan={monthlyData.months.length + 3} style={{ padding: 0, border: 'none' }}>
+                    <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-blue-50 to-cyan-50 border-b border-blue-200">
+                      <InventoryBackupControls
+                        openingInventory={openingInventory}
+                        closingInventory={closingInventory}
+                        onImport={(opening, closing) => {
+                          setOpeningInventory(opening);
+                          setClosingInventory(closing);
+                        }}
+                      />
+                      <button
+                        onClick={() => setShowInventoryEditor(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors shadow-sm"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                        ערוך מלאי
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
                 <InventoryRow
                   type="opening"
                   months={monthlyData.months}
@@ -1041,7 +1124,18 @@ const MonthlyReport: React.FC = () => {  // ============ STATE ============
         onClose={() => setShowBiurModal(false)}
         formatCurrency={formatCurrency}
       />
+
+      {/* Inventory Editor Modal */}
+      <InventoryEditorModal
+        isOpen={showInventoryEditor}
+        onClose={() => setShowInventoryEditor(false)}
+        openingInventory={convertToYearMonth(openingInventory)}
+        closingInventory={convertToYearMonth(closingInventory)}
+        onSave={handleInventorySave}
+        formatCurrency={formatCurrency}
+      />
     </div>
   );
 };
+
 export default MonthlyReport;

@@ -21,7 +21,36 @@ export const InventoryRow: React.FC<InventoryRowProps> = ({
 }) => {
   const isOpening = type === 'opening';
   const label = isOpening ? 'מלאי פתיחה' : 'מלאי סגירה';
-  const total = Object.values(inventory).reduce((a, b) => a + b, 0);
+  
+  // פונקציה לקבלת ערך מהמלאי - תומכת בשני פורמטים
+  const getInventoryValue = (month: number): number => {
+    // ניסיון 1: פורמט ישן (מספר) - הפורמט הנוכחי
+    if (inventory[month] !== undefined) {
+      return inventory[month];
+    }
+    
+    // ניסיון 2: פורמט חדש "2025-01" (לעתיד)
+    const yearMonthKey = `2025-${String(month).padStart(2, '0')}`;
+    const inventoryAny = inventory as any;
+    if (inventoryAny[yearMonthKey] !== undefined) {
+      return inventoryAny[yearMonthKey];
+    }
+    
+    return 0;
+  };
+  
+  // חישוב סה"כ - תומך בשני פורמטים
+  const calculateTotal = (): number => {
+    return Object.entries(inventory).reduce((sum, [key, value]) => {
+      // אם זה מפתח מספרי או מחרוזת בפורמט YYYY-MM
+      if (typeof value === 'number') {
+        return sum + value;
+      }
+      return sum;
+    }, 0);
+  };
+  
+  const total = calculateTotal();
 
   return (
     <tr className="bg-blue-50">
@@ -31,21 +60,24 @@ export const InventoryRow: React.FC<InventoryRowProps> = ({
           <span className="font-medium">{label}</span>
         </div>
       </td>
-      {months.map(m => (
-        <td key={m} className="border border-gray-300 px-2 py-2 text-center">
-          <input
-            type="text"
-            inputMode="numeric"
-            className="w-24 px-2 py-1 border border-gray-300 rounded text-center text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            value={inventory[m] || ''}
-            onChange={(e) => {
-              const val = e.target.value;
-              onChange(m, val === '' || val === '-' ? 0 : Number(val));
-            }}
-            onFocus={(e) => e.target.select()}
-          />
-        </td>
-      ))}
+      {months.map(m => {
+        const value = getInventoryValue(m);
+        return (
+          <td key={m} className="border border-gray-300 px-2 py-2 text-center">
+            <input
+              type="text"
+              inputMode="numeric"
+              className="w-24 px-2 py-1 border border-gray-300 rounded text-center text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              value={value || ''}
+              onChange={(e) => {
+                const val = e.target.value;
+                onChange(m, val === '' || val === '-' ? 0 : Number(val));
+              }}
+              onFocus={(e) => e.target.select()}
+            />
+          </td>
+        );
+      })}
       <td className="border border-gray-300 px-3 py-2 text-center font-medium">
         {isOpening 
           ? formatCurrency(total)
