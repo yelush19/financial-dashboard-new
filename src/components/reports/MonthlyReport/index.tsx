@@ -441,25 +441,33 @@ loadInventoryData();
   };
 
   // טיפול בשמירה מהמודל
-  const handleInventorySave = async (opening: { [key: string]: number }, closing: { [key: string]: number }) => {
+const handleInventorySave = async (opening: { [key: string]: number }, closing: { [key: string]: number }) => {
   const convertedOpening = convertFromYearMonth(opening);
   const convertedClosing = convertFromYearMonth(closing);
   
   setOpeningInventory(convertedOpening);
   setClosingInventory(convertedClosing);
   
+  console.log('💾 Saving inventory...', { convertedOpening, convertedClosing });
+  
   // שמירה ל-Wix + localStorage (fallback)
   try {
-    await window.wixWindow?.backend?.saveInventory(
-      JSON.stringify(convertedOpening),
-      JSON.stringify(convertedClosing)
-    );
+    if (window.wixWindow?.backend?.saveInventory) {
+      await window.wixWindow.backend.saveInventory(
+        JSON.stringify(convertedOpening),
+        JSON.stringify(convertedClosing)
+      );
+      console.log('✅ Saved to Wix successfully!');
+    } else {
+      console.log('⚠️ Wix backend not available (localhost mode)');
+    }
   } catch (error) {
-    console.log('Wix save failed, using localStorage:', error);
+    console.log('❌ Wix save failed, using localStorage:', error);
   }
   
   localStorage.setItem(STORAGE_KEYS.OPENING_INVENTORY, JSON.stringify(convertedOpening));
   localStorage.setItem(STORAGE_KEYS.CLOSING_INVENTORY, JSON.stringify(convertedClosing));
+  console.log('💾 Saved to localStorage as backup');
 };
 
   const handleClosingInventoryChange = (month: number, value: number) => {
