@@ -169,55 +169,54 @@ export const InventoryEditorModal: React.FC<InventoryEditorModalProps> = ({
     setLocalOpening(newOpening);
   };
 
-  // שמירה
-// שמירה - מעודכן לחיבור Wix API
-const handleSave = async () => {
-  console.log('💾 Saving inventory...', { localOpening, localClosing });
-  
-  try {
-    // Save to Wix via HTTP Functions API
-    const response = await fetch('https://litay.co.il/_functions/saveInventory', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        opening: localOpening,
-        closing: localClosing
-      })
-    });
+  // שמירה - מעודכן לחיבור Wix API
+  const handleSave = async () => {
+    console.log('💾 Saving inventory...', { localOpening, localClosing });
+    
+    try {
+      // Save to Wix via HTTP Functions API
+      const response = await fetch('https://litay.co.il/_functions/saveInventory', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          opening: localOpening,
+          closing: localClosing
+        })
+      });
 
-    const result = await response.json();
+      const result = await response.json();
 
-    if (result.success) {
-      console.log('✅ Saved to Wix successfully');
+      if (result.success) {
+        console.log('✅ Saved to Wix successfully');
+        
+        // Update parent component state
+        onSave(localOpening, localClosing);
+        
+        // Save to localStorage as backup
+        localStorage.setItem('inventoryOpening', JSON.stringify(localOpening));
+        localStorage.setItem('inventoryClosing', JSON.stringify(localClosing));
+        console.log('💾 Saved to localStorage as backup');
+        
+        onClose();
+      } else {
+        throw new Error(result.error || 'Failed to save to Wix');
+      }
       
-      // Update parent component state
-      onSave(localOpening, localClosing);
+    } catch (error) {
+      console.error('❌ Error saving to Wix:', error);
       
-      // Save to localStorage as backup
+      // Fallback: Save to localStorage only
       localStorage.setItem('inventoryOpening', JSON.stringify(localOpening));
       localStorage.setItem('inventoryClosing', JSON.stringify(localClosing));
-      console.log('💾 Saved to localStorage as backup');
+      console.log('⚠️ Saved to localStorage only (Wix API unavailable)');
       
+      // Still update parent state and close
+      onSave(localOpening, localClosing);
       onClose();
-    } else {
-      throw new Error(result.error || 'Failed to save to Wix');
     }
-    
-  } catch (error) {
-    console.error('❌ Error saving to Wix:', error);
-    
-    // Fallback: Save to localStorage only
-    localStorage.setItem('inventoryOpening', JSON.stringify(localOpening));
-    localStorage.setItem('inventoryClosing', JSON.stringify(localClosing));
-    console.log('⚠️ Saved to localStorage only (Wix API unavailable)');
-    
-    // Still update parent state and close
-    onSave(localOpening, localClosing);
-    onClose();
-  }
-};
+  };
 
   // חישוב סכומים
   const totalOpening = Object.values(localOpening).reduce((a, b) => a + b, 0);
@@ -289,34 +288,34 @@ const handleSave = async () => {
                       <div className="text-xs text-gray-400 mt-0.5">{monthData.key}</div>
                     </td>
                     
-                  {/* מלאי פתיחה - עריכה רק לינואר 2025 */}
-<td className="border border-gray-300 px-4 py-3 text-center bg-gray-50">
-  {monthData.key === '2025-01' ? (
-    // ✅ ינואר 2025 - ניתן לעריכה
-    <input
-      type="text"
-      inputMode="numeric"
-      className="w-full px-3 py-2 border-2 border-green-300 rounded-lg text-center font-medium focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none bg-white"
-      value={formatNumber(localOpening[monthData.key] || 0)}
-      onChange={(e) => {
-        const numValue = parseNumber(e.target.value);
-        setLocalOpening({...localOpening, [monthData.key]: numValue});
-      }}
-      onFocus={(e) => e.target.select()}
-      placeholder="0"
-    />
-  ) : (
-    // ❌ שאר החודשים - קריאה בלבד
-    <>
-      <div className="text-gray-600 font-medium">
-        {formatNumber(localOpening[monthData.key] || 0)}
-      </div>
-      <div className="text-xs text-gray-400 mt-1">
-        (אוטומטי)
-      </div>
-    </>
-  )}
-</td>
+                    {/* מלאי פתיחה - עריכה רק לינואר 2025 */}
+                    <td className="border border-gray-300 px-4 py-3 text-center bg-gray-50">
+                      {monthData.key === '2025-01' ? (
+                        // ✅ ינואר 2025 - ניתן לעריכה
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          className="w-full px-3 py-2 border-2 border-green-300 rounded-lg text-center font-medium focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none bg-white"
+                          value={formatNumber(localOpening[monthData.key] || 0)}
+                          onChange={(e) => {
+                            const numValue = parseNumber(e.target.value);
+                            setLocalOpening({...localOpening, [monthData.key]: numValue});
+                          }}
+                          onFocus={(e) => e.target.select()}
+                          placeholder="0"
+                        />
+                      ) : (
+                        // ❌ שאר החודשים - קריאה בלבד
+                        <>
+                          <div className="text-gray-600 font-medium">
+                            {formatNumber(localOpening[monthData.key] || 0)}
+                          </div>
+                          <div className="text-xs text-gray-400 mt-1">
+                            (אוטומטי)
+                          </div>
+                        </>
+                      )}
+                    </td>
                     
                     {/* מלאי סגירה - ניתן לעריכה */}
                     <td className="border border-gray-300 px-4 py-3 text-center">
@@ -388,150 +387,4 @@ const handleSave = async () => {
   );
 };
 
-// ==================== DEMO ====================
-export default function Demo() {
-  const [showModal, setShowModal] = useState(false);
-  
-  // דוגמה: נתונים שעוברים משנת 2025 ל-2026
-  const [openingInventory, setOpeningInventory] = useState<Inventory>({
-    '2025-01': 650000,
-    '2025-02': 680000,
-    '2025-03': 700000,
-    '2025-10': 720000,
-    '2025-11': 730000,
-    '2025-12': 740000,
-    '2026-01': 740000,  // מועבר אוטומטי מדצמבר 2025
-    '2026-02': 750000,
-    '2026-03': 760000,
-  });
-  
-  const [closingInventory, setClosingInventory] = useState<Inventory>({
-    '2025-01': 680000,
-    '2025-02': 700000,
-    '2025-03': 720000,
-    '2025-10': 730000,
-    '2025-11': 740000,
-    '2025-12': 740000,  // יועבר ל-2026-01
-    '2026-01': 750000,
-    '2026-02': 760000,
-    '2026-03': 770000,
-  });
-
-  const formatCurrency = (amount: number): string => {
-    return new Intl.NumberFormat('he-IL', {
-      style: 'currency',
-      currency: 'ILS',
-      minimumFractionDigits: 0
-    }).format(amount);
-  };
-
-  const handleSave = (opening: Inventory, closing: Inventory) => {
-    setOpeningInventory(opening);
-    setClosingInventory(closing);
-    
-    console.log('✅ מלאי עודכן:', {
-      opening,
-      closing
-    });
-    
-    alert('המלאי עודכן בהצלחה! ✅\nבדוק את הקונסול לפרטים');
-  };
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-8" dir="rtl">
-      <div className="max-w-5xl mx-auto">
-        <div className="bg-white rounded-xl shadow-lg p-8">
-          <div className="flex items-center gap-4 mb-6">
-            <Package className="w-10 h-10 text-blue-600" />
-            <div>
-              <h1 className="text-3xl font-bold text-gray-800">
-                מערכת עדכון מלאי רב-שנתי
-              </h1>
-              <p className="text-gray-600 mt-1">
-                תומך במעבר בין שנים - דצמבר 2025 ← ינואר 2026
-              </p>
-            </div>
-          </div>
-          
-          <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg p-6 mb-6 border border-blue-200">
-            <h3 className="font-bold text-blue-900 mb-3 flex items-center gap-2">
-              <AlertCircle className="w-5 h-5" />
-              תכונות המערכת:
-            </h3>
-            <ul className="space-y-2 text-sm text-blue-800">
-              <li className="flex items-start gap-2">
-                <span className="text-green-600 font-bold">✓</span>
-                <span><strong>מעבר בין שנים:</strong> מלאי סגירה 12/2025 ← פתיחה 01/2026</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-green-600 font-bold">✓</span>
-                <span><strong>פורמט גמיש:</strong> פורמט YYYY-MM (2025-01, 2026-12)</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-green-600 font-bold">✓</span>
-                <span><strong>העתקה אוטומטית:</strong> עריכת סגירה ← עדכון פתיחה החודש הבא</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-green-600 font-bold">✓</span>
-                <span><strong>אינדיקטור ויזואלי:</strong> רואים איזה ערך יועבר לחודש הבא</span>
-              </li>
-            </ul>
-          </div>
-
-          <button
-            onClick={() => setShowModal(true)}
-            className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white rounded-lg font-bold text-lg transition-all shadow-md hover:shadow-xl"
-          >
-            <Package className="w-6 h-6" />
-            פתח עדכון מלאי
-          </button>
-
-          <div className="mt-8 grid grid-cols-2 gap-6">
-            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-              <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-                <span className="text-blue-600">📥</span>
-                מלאי פתיחה
-              </h3>
-              <div className="space-y-1 text-sm font-mono text-gray-600 max-h-64 overflow-auto">
-                {Object.entries(openingInventory)
-                  .sort(([a], [b]) => a.localeCompare(b))
-                  .map(([key, value]) => (
-                    <div key={key} className="flex justify-between">
-                      <span className="font-semibold">{key}:</span>
-                      <span>{formatCurrency(value)}</span>
-                    </div>
-                  ))}
-              </div>
-            </div>
-
-            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-              <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-                <span className="text-green-600">📤</span>
-                מלאי סגירה
-              </h3>
-              <div className="space-y-1 text-sm font-mono text-gray-600 max-h-64 overflow-auto">
-                {Object.entries(closingInventory)
-                  .sort(([a], [b]) => a.localeCompare(b))
-                  .map(([key, value]) => (
-                    <div key={key} className="flex justify-between">
-                      <span className="font-semibold">{key}:</span>
-                      <span>{formatCurrency(value)}</span>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <InventoryEditorModal
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
-        openingInventory={openingInventory}
-        closingInventory={closingInventory}
-        onSave={handleSave}
-        formatCurrency={formatCurrency}
-      />
-    </div>
-  );
-}
+export default InventoryEditorModal;

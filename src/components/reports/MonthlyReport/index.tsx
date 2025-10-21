@@ -1,11 +1,11 @@
 // src/components/reports/MonthlyReport/index.tsx
+// 🔧 גרסה מתוקנת עם כל השינויים
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { ChevronDown, ChevronRight, ChevronLeft, Save, Download, TrendingUp, AlertCircle, Edit3, Calculator } from 'lucide-react';
 import Papa from 'papaparse';
 import _ from 'lodash';
 
-// Wix Backend Types
 declare global {
   interface Window {
     wixWindow?: {
@@ -19,7 +19,6 @@ declare global {
   }
 }
 
-// Types
 import { 
   Transaction, 
   MonthlyData, 
@@ -31,10 +30,8 @@ import {
   BiurData
 } from '../../../types/reportTypes';
 
-// Constants
 import { MONTH_NAMES, STORAGE_KEYS, REPORT_CONFIG } from '../../../constants/reportConstants';
 
-// Components
 import { StatsCards } from './StatsCards';
 import { BiurModal } from './BiurModal';
 import { TableHeader } from './TableHeader';
@@ -47,9 +44,7 @@ import { InventoryEditorModal } from './InventoryEditorModal';
 import { AdjustmentsEditorModal } from './AdjustmentsEditorModal';
 import { DrillDownModal } from './DrillDownModal';
 
-// ============ MAIN COMPONENT ============
 const MonthlyReport: React.FC = () => {
-  // ============ STATE ============
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -65,8 +60,6 @@ const MonthlyReport: React.FC = () => {
   });
   const [showInventoryEditor, setShowInventoryEditor] = useState(false);
   const [showAdjustmentsEditor, setShowAdjustmentsEditor] = useState(false);
-  
-  // 🆕 State למערכת drill-down
   const [showDrillDown, setShowDrillDown] = useState(false);
   const [drillDownData, setDrillDownData] = useState<{
     categoryCode: number | string;
@@ -76,7 +69,6 @@ const MonthlyReport: React.FC = () => {
     transactions: Transaction[];
   } | null>(null);
 
-  // ============ LOAD DATA ============
   useEffect(() => {
     const loadTransactions = async () => {
       try {
@@ -87,29 +79,6 @@ const MonthlyReport: React.FC = () => {
         if (!response.ok) {
           throw new Error(`שגיאה בטעינת הקובץ: ${response.status}`);
         }
-        // טעינת נתונים מ-Wix + localStorage (fallback)
-      const loadInventoryData = async () => {
-        try {
-          const wixData = await window.wixWindow?.backend?.loadInventory();
-          if (wixData?.opening) setOpeningInventory(JSON.parse(wixData.opening));
-          if (wixData?.closing) setClosingInventory(JSON.parse(wixData.closing));
-          
-          const wixAdj = await window.wixWindow?.backend?.loadAdjustments();
-          if (wixAdj?.adjustments) setAdjustments2024(JSON.parse(wixAdj.adjustments));
-        } catch (error) {
-          console.log('Wix load failed, using localStorage:', error);
-          
-          const savedOpeningInv = localStorage.getItem(STORAGE_KEYS.OPENING_INVENTORY);
-          const savedClosingInv = localStorage.getItem(STORAGE_KEYS.CLOSING_INVENTORY);
-          const savedAdjustments = localStorage.getItem(STORAGE_KEYS.ADJUSTMENTS_2024);
-          
-          if (savedOpeningInv) setOpeningInventory(JSON.parse(savedOpeningInv));
-          if (savedClosingInv) setClosingInventory(JSON.parse(savedClosingInv));
-          if (savedAdjustments) setAdjustments2024(JSON.parse(savedAdjustments));
-        }
-      };
-      
-      loadInventoryData();
 
         const text = await response.text();
         
@@ -133,31 +102,6 @@ const MonthlyReport: React.FC = () => {
                 .filter((tx: Transaction) => tx.accountKey !== 0 && tx.date);
               
               setTransactions(parsed);
-
-           // טעינת נתונים מ-Wix + localStorage (fallback)
-const loadInventoryData = async () => {
-  try {
-    const wixData = await window.wixWindow?.backend?.loadInventory();
-    if (wixData?.opening) setOpeningInventory(JSON.parse(wixData.opening));
-    if (wixData?.closing) setClosingInventory(JSON.parse(wixData.closing));
-    
-    const wixAdj = await window.wixWindow?.backend?.loadAdjustments();
-    if (wixAdj?.adjustments) setAdjustments2024(JSON.parse(wixAdj.adjustments));
-  } catch (error) {
-    console.log('Wix load failed, using localStorage:', error);
-    
-    const savedOpeningInv = localStorage.getItem(STORAGE_KEYS.OPENING_INVENTORY);
-    const savedClosingInv = localStorage.getItem(STORAGE_KEYS.CLOSING_INVENTORY);
-    const savedAdjustments = localStorage.getItem(STORAGE_KEYS.ADJUSTMENTS_2024);
-    
-    if (savedOpeningInv) setOpeningInventory(JSON.parse(savedOpeningInv));
-    if (savedClosingInv) setClosingInventory(JSON.parse(savedClosingInv));
-    if (savedAdjustments) setAdjustments2024(JSON.parse(savedAdjustments));
-  }
-};
-
-loadInventoryData();
-              
               setLoading(false);
             } catch (err) {
               console.error('Error parsing data:', err);
@@ -178,10 +122,31 @@ loadInventoryData();
       }
     };
 
+    const loadInventoryData = async () => {
+      try {
+        const wixData = await window.wixWindow?.backend?.loadInventory();
+        if (wixData?.opening) setOpeningInventory(JSON.parse(wixData.opening));
+        if (wixData?.closing) setClosingInventory(JSON.parse(wixData.closing));
+        
+        const wixAdj = await window.wixWindow?.backend?.loadAdjustments();
+        if (wixAdj?.adjustments) setAdjustments2024(JSON.parse(wixAdj.adjustments));
+      } catch (error) {
+        console.log('Wix load failed, using localStorage:', error);
+        
+        const savedOpeningInv = localStorage.getItem(STORAGE_KEYS.OPENING_INVENTORY);
+        const savedClosingInv = localStorage.getItem(STORAGE_KEYS.CLOSING_INVENTORY);
+        const savedAdjustments = localStorage.getItem(STORAGE_KEYS.ADJUSTMENTS_2024);
+        
+        if (savedOpeningInv) setOpeningInventory(JSON.parse(savedOpeningInv));
+        if (savedClosingInv) setClosingInventory(JSON.parse(savedClosingInv));
+        if (savedAdjustments) setAdjustments2024(JSON.parse(savedAdjustments));
+      }
+    };
+    
     loadTransactions();
+    loadInventoryData();
   }, []);
 
-  // ============ PROCESS DATA ============
   const monthlyData = useMemo((): ProcessedMonthlyData => {
     if (!transactions.length) {
       return { 
@@ -199,14 +164,12 @@ loadInventoryData();
       };
     }
 
-    // חילוץ חודשים ייחודיים
     const uniqueMonths = Array.from(new Set(
       transactions
         .filter(tx => tx.date && tx.date.split('/').length === 3)
         .map(tx => parseInt(tx.date.split('/')[1]))
     )).sort((a, b) => a - b);
 
-    // פונקציה לעיבוד קטגוריה
     const processCategory = (
       code: number | string, 
       type: 'income' | 'cogs' | 'operating' | 'financial', 
@@ -221,7 +184,6 @@ loadInventoryData();
       
       uniqueMonths.forEach(m => data[m] = 0);
       
-      // קיבוץ לפי ספקים/לקוחות
       const vendorGroups = _.groupBy(categoryTxs, tx => {
         const counterNum = tx.counterAccountNumber || 0;
         const counterName = tx.counterAccountName || tx.details.split(' ')[0] || 'לא ידוע';
@@ -251,7 +213,6 @@ loadInventoryData();
         .filter(v => v.data.total !== 0)
         .sort((a, b) => Math.abs(b.data.total) - Math.abs(a.data.total));
 
-      // חישוב סכומים חודשיים
       categoryTxs.forEach(tx => {
         const month = parseInt(tx.date.split('/')[1]);
         if (uniqueMonths.includes(month)) {
@@ -263,7 +224,6 @@ loadInventoryData();
       return { data, vendors, sortCodeName };
     };
 
-    // עיבוד כל הקטגוריות
     const income_site = processCategory('income_site', 'income', 
       tx => tx.sortCode === 600 && tx.accountKey >= 40000 && tx.accountKey < 40020
     );
@@ -299,7 +259,6 @@ loadInventoryData();
       { code: 991, name: fin991.sortCodeName, type: 'financial', data: fin991.data, vendors: fin991.vendors },
     ];
 
-    // חישוב סיכומים
     const revenue: MonthlyData = { total: 0 };
     const cogs: MonthlyData = { total: 0 };
     const operating: MonthlyData = { total: 0 };
@@ -350,7 +309,6 @@ loadInventoryData();
     };
   }, [transactions, openingInventory, closingInventory]);
 
-  // ============ HANDLERS ============
   const toggleCategory = (code: string) => {
     const newSet = new Set(expandedCategories);
     if (newSet.has(code)) {
@@ -397,84 +355,56 @@ loadInventoryData();
     alert('הנתונים נשמרו בהצלחה!');
   };
 
-  // ============ פונקציות המרה בין פורמטים ============
-  
-  // המרה מפורמט מספרי לפורמט YYYY-MM
   const convertToYearMonth = (inventory: Inventory): { [key: string]: number } => {
     const result: { [key: string]: number } = {};
     Object.entries(inventory).forEach(([key, value]) => {
       if (typeof key === 'number' || !key.includes('-')) {
-        // פורמט ישן - המר ל-YYYY-MM
         const monthNum = typeof key === 'string' ? parseInt(key) : key;
         const yearMonthKey = `2025-${String(monthNum).padStart(2, '0')}`;
         result[yearMonthKey] = value;
       } else {
-        // פורמט חדש - השאר כמו שזה
         result[key] = value;
       }
     });
     return result;
   };
   
-  // המרה מפורמט YYYY-MM לפורמט מספרי
   const convertFromYearMonth = (inventory: { [key: string]: number }): Inventory => {
     const result: Inventory = {};
     Object.entries(inventory).forEach(([key, value]) => {
       if (key.includes('-')) {
-        // פורמט YYYY-MM - קח רק את החודש
         const [year, monthStr] = key.split('-');
         const month = parseInt(monthStr);
         
-        // אם זה שנת 2025, שמור כמספר
         if (year === '2025') {
           result[month] = value;
         } else {
-          // אם זה שנה אחרת, שמור כ-string
           result[key as any] = value;
         }
       } else {
-        // כבר בפורמט נכון
         result[key as any] = value;
       }
     });
     return result;
   };
 
-  // טיפול בשמירה מהמודל
-const handleInventorySave = async (opening: { [key: string]: number }, closing: { [key: string]: number }) => {
-  const convertedOpening = convertFromYearMonth(opening);
-  const convertedClosing = convertFromYearMonth(closing);
-  
-  setOpeningInventory(convertedOpening);
-  setClosingInventory(convertedClosing);
-  
-  console.log('💾 Saving inventory...', { convertedOpening, convertedClosing });
-  
-  // שמירה ל-Wix + localStorage (fallback)
-  try {
-    if (window.wixWindow?.backend?.saveInventory) {
-      await window.wixWindow.backend.saveInventory(
-        JSON.stringify(convertedOpening),
-        JSON.stringify(convertedClosing)
-      );
-      console.log('✅ Saved to Wix successfully!');
-    } else {
-      console.log('⚠️ Wix backend not available (localhost mode)');
-    }
-  } catch (error) {
-    console.log('❌ Wix save failed, using localStorage:', error);
-  }
-  
-  localStorage.setItem(STORAGE_KEYS.OPENING_INVENTORY, JSON.stringify(convertedOpening));
-  localStorage.setItem(STORAGE_KEYS.CLOSING_INVENTORY, JSON.stringify(convertedClosing));
-  console.log('💾 Saved to localStorage as backup');
-};
+  const handleInventorySave = (opening: { [key: string]: number }, closing: { [key: string]: number }) => {
+    const convertedOpening = convertFromYearMonth(opening);
+    const convertedClosing = convertFromYearMonth(closing);
+    
+    setOpeningInventory(convertedOpening);
+    setClosingInventory(convertedClosing);
+    
+    console.log('✅ Inventory saved - InventoryEditorModal handles Wix API', {
+      opening: convertedOpening,
+      closing: convertedClosing
+    });
+  };
 
   const handleClosingInventoryChange = (month: number, value: number) => {
     const newClosing = { ...closingInventory, [month]: value };
     setClosingInventory(newClosing);
     
-    // עדכון אוטומטי של מלאי פתיחה בחודש הבא
     const nextMonth = month + 1;
     if (nextMonth <= 12 && monthlyData.months.includes(nextMonth)) {
       setOpeningInventory(prev => ({ ...prev, [nextMonth]: value }));
@@ -497,7 +427,6 @@ const handleInventorySave = async (opening: { [key: string]: number }, closing: 
     return parseFloat(String(val)) || 0;
   };
 
-  // 🆕 טיפול ב-drill-down
   const handleDrillDown = (category: CategoryData, month: number) => {
     let txs: Transaction[];
     
@@ -513,7 +442,6 @@ const handleInventorySave = async (opening: { [key: string]: number }, closing: 
       txs = transactions.filter(tx => tx.sortCode === category.code);
     }
 
-    // סינון לפי חודש
     txs = txs.filter(tx => parseInt(tx.date.split('/')[1]) === month);
 
     setDrillDownData({
@@ -592,7 +520,6 @@ const handleInventorySave = async (opening: { [key: string]: number }, closing: 
     link.click();
   };
 
-  // ============ RENDER LOADING/ERROR ============
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -634,10 +561,8 @@ const handleInventorySave = async (opening: { [key: string]: number }, closing: 
     );
   }
 
-  // ============ MAIN RENDER ============
   return (
     <div className="w-full p-6 bg-white">
-      {/* כותרת */}
       <div className="mb-6 pb-4" style={{
         background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
         padding: '1.5rem',
@@ -661,50 +586,45 @@ const handleInventorySave = async (opening: { [key: string]: number }, closing: 
             </p>
           </div>
           <div className="flex gap-2">
-  
-  <button
-    onClick={() => setShowInventoryEditor(true)}
-    className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-lg hover:bg-opacity-30 flex items-center gap-2 transition-all"
-  >
-    <Edit3 className="w-4 h-4" />
-    עדכון מלאי
-  </button>
-  <button
-    onClick={() => setShowAdjustmentsEditor(true)}
-className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-lg hover:bg-opacity-30 flex items-center gap-2 transition-all"
->
-  <Calculator className="w-4 h-4" />
-  עדכוני 2024
-</button>
-
-  <button
-    onClick={toggleAllSections}
-    className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-lg hover:bg-opacity-30 flex items-center gap-2 transition-all"
-  >
-    {collapsedSections.size > 0 ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-    {collapsedSections.size > 0 ? 'פתח הכל' : 'סגור הכל'}
-  </button>
-  
-  <button
-    onClick={saveInventory}
-    className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-lg hover:bg-opacity-30 flex items-center gap-2 transition-all"
-  >
-    <Save className="w-4 h-4" />
-    שמור מלאי
-  </button>
-  
-  <button
-    onClick={exportToCSV}
-    className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-lg hover:bg-opacity-30 flex items-center gap-2 transition-all"
-  >
-    <Download className="w-4 h-4" />
-    ייצא ל-CSV
- </button>
+            <button
+              onClick={() => setShowInventoryEditor(true)}
+              className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-lg hover:bg-opacity-30 flex items-center gap-2 transition-all"
+            >
+              <Edit3 className="w-4 h-4" />
+              עדכון מלאי
+            </button>
+            <button
+              onClick={() => setShowAdjustmentsEditor(true)}
+              className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-lg hover:bg-opacity-30 flex items-center gap-2 transition-all"
+            >
+              <Calculator className="w-4 h-4" />
+              עדכוני 2024
+            </button>
+            <button
+              onClick={toggleAllSections}
+              className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-lg hover:bg-opacity-30 flex items-center gap-2 transition-all"
+            >
+              {collapsedSections.size > 0 ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+              {collapsedSections.size > 0 ? 'פתח הכל' : 'סגור הכל'}
+            </button>
+            <button
+              onClick={saveInventory}
+              className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-lg hover:bg-opacity-30 flex items-center gap-2 transition-all"
+            >
+              <Save className="w-4 h-4" />
+              שמור מלאי
+            </button>
+            <button
+              onClick={exportToCSV}
+              className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-lg hover:bg-opacity-30 flex items-center gap-2 transition-all"
+            >
+              <Download className="w-4 h-4" />
+              ייצא ל-CSV
+            </button>
+          </div>
+        </div>
       </div>
-    </div>
-  </div>
 
-      {/* כרטיסי סטטיסטיקה */}
       <StatsCards
         monthlyData={monthlyData}
         openingInventory={openingInventory}
@@ -714,7 +634,6 @@ className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-lg hover:bg-opaci
         getAdjustmentValue={getAdjustmentValue}
       />
 
-      {/* טבלה ראשית */}
       <div 
         className="overflow-x-auto shadow-lg rounded-lg" 
         style={{ 
@@ -746,7 +665,6 @@ className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-lg hover:bg-opaci
           <TableHeader months={monthlyData.months} />
           
           <tbody>
-            {/* ========== הכנסות ========== */}
             <tr 
               className="bg-green-50 cursor-pointer hover:bg-green-100 transition-colors"
               onClick={() => toggleSection('income')}
@@ -810,7 +728,6 @@ className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-lg hover:bg-opaci
 
             <tr><td colSpan={monthlyData.months.length + 3} className="h-3 bg-gray-50"></td></tr>
 
-            {/* ========== עלות המכר ========== */}
             <tr 
               className="bg-orange-50 cursor-pointer hover:bg-orange-100 transition-colors"
               onClick={() => toggleSection('cogs')}
@@ -829,13 +746,13 @@ className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-lg hover:bg-opaci
 
             {!collapsedSections.has('cogs') && (
               <>
-           
                 <InventoryRow
                   type="opening"
                   months={monthlyData.months}
                   inventory={openingInventory}
                   onChange={(month, value) => setOpeningInventory({...openingInventory, [month]: value})}
                   formatCurrency={formatCurrency}
+                  indented={true}
                 />
 
                 {monthlyData.categories.filter(c => c.type === 'cogs').map(cat => (
@@ -868,26 +785,35 @@ className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-lg hover:bg-opaci
                       onChange={handleAdjustmentChange}
                       getAdjustmentValue={getAdjustmentValue}
                       formatCurrency={formatCurrency}
+                      indented={true}
                     />
 
+                    {/* 🆕 שורת סיכום מעודכן - אחרי עדכוני 2024 */}
                     <tr className="bg-orange-100 border-t-2 border-orange-400">
                       <td className="border border-gray-300 px-4 py-2 sticky right-0 bg-orange-100 font-semibold text-orange-800">
-                        סה"כ {cat.code} - {cat.name}
+                        סה"כ {cat.code} מעודכן - {cat.name}
                       </td>
                       {monthlyData.months.map(m => {
                         const adjustment = getAdjustmentValue(String(cat.code), m);
-                        const total = Math.abs(cat.data[m] || 0) + adjustment;
+                        const categoryValue = Math.abs(cat.data[m] || 0);
+                        const adjustedTotal = categoryValue - adjustment; // חיסור כי עדכוני 2024 צריכים להקטין
+                        const revenue = monthlyData.totals.revenue[m] || 0;
+                        const percentage = revenue !== 0 ? ((adjustedTotal / revenue) * 100).toFixed(1) : '0.0';
                         return (
-                          <td key={m} className="border border-gray-300 px-3 py-2 text-center font-bold text-orange-800">
-                            {formatCurrency(total)}
+                          <td key={m} className="border border-gray-300 px-3 py-2 text-center font-bold text-orange-900">
+                            <div>{formatCurrency(adjustedTotal)}</div>
+                            <div className="text-xs text-gray-600">({percentage}%)</div>
                           </td>
                         );
                       })}
-                      <td className="border border-gray-300 px-3 py-2 text-center font-bold text-orange-800">
-                        {formatCurrency(
-                          Math.abs(cat.data.total) + 
+                      <td className="border border-gray-300 px-3 py-2 text-center font-bold text-orange-900">
+                        <div>{formatCurrency(
+                          Math.abs(cat.data.total) - 
                           monthlyData.months.reduce((sum, m) => sum + getAdjustmentValue(String(cat.code), m), 0)
-                        )}
+                        )}</div>
+                        <div className="text-xs text-gray-600">
+                          ({((Math.abs(cat.data.total) - monthlyData.months.reduce((sum, m) => sum + getAdjustmentValue(String(cat.code), m), 0)) / monthlyData.totals.revenue.total * 100).toFixed(1)}%)
+                        </div>
                       </td>
                       <td className="border border-gray-300"></td>
                     </tr>
@@ -900,6 +826,7 @@ className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-lg hover:bg-opaci
                   inventory={closingInventory}
                   onChange={handleClosingInventoryChange}
                   formatCurrency={formatCurrency}
+                  indented={true}
                 />
 
                 <tr className="bg-orange-50 border-2 border-orange-400">
@@ -910,7 +837,7 @@ className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-lg hover:bg-opaci
                     const cogsAdjustments = monthlyData.categories
                       .filter(c => c.type === 'cogs')
                       .reduce((sum, cat) => sum + getAdjustmentValue(String(cat.code), m), 0);
-                    const cogsCost = Math.abs(monthlyData.totals.cogs[m] || 0) + (openingInventory[m] || 0) - (closingInventory[m] || 0) + cogsAdjustments;
+                    const cogsCost = Math.abs(monthlyData.totals.cogs[m] || 0) - cogsAdjustments + (openingInventory[m] || 0) - (closingInventory[m] || 0);
                     return (
                       <td key={m} className="border border-gray-300 px-3 py-3 text-center font-bold text-orange-700">
                         {formatCurrency(cogsCost)}
@@ -919,14 +846,14 @@ className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-lg hover:bg-opaci
                   })}
                   <td className="border border-gray-300 px-3 py-3 text-center font-bold text-orange-700 text-base">
                     {formatCurrency(
-                      Math.abs(monthlyData.totals.cogs.total) + 
-                      Object.values(openingInventory).reduce((a, b) => a + b, 0) - 
-                      Object.values(closingInventory).reduce((a, b) => a + b, 0) +
+                      Math.abs(monthlyData.totals.cogs.total) - 
                       monthlyData.categories
                         .filter(c => c.type === 'cogs')
                         .reduce((sum, cat) => {
                           return sum + monthlyData.months.reduce((s, m) => s + getAdjustmentValue(String(cat.code), m), 0);
-                        }, 0)
+                        }, 0) +
+                      Object.values(openingInventory).reduce((a, b) => a + b, 0) - 
+                      Object.values(closingInventory).reduce((a, b) => a + b, 0)
                     )}
                   </td>
                   <td className="border border-gray-300"></td>
@@ -940,26 +867,40 @@ className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-lg hover:bg-opaci
                     const cogsAdjustments = monthlyData.categories
                       .filter(c => c.type === 'cogs')
                       .reduce((sum, cat) => sum + getAdjustmentValue(String(cat.code), m), 0);
-                    const cogsCost = Math.abs(monthlyData.totals.cogs[m] || 0) + (openingInventory[m] || 0) - (closingInventory[m] || 0) + cogsAdjustments;
+                    const cogsCost = Math.abs(monthlyData.totals.cogs[m] || 0) - cogsAdjustments + (openingInventory[m] || 0) - (closingInventory[m] || 0);
                     const grossProfit = (monthlyData.totals.revenue[m] || 0) - cogsCost;
+                    const revenue = monthlyData.totals.revenue[m] || 0;
+                    const percentage = revenue !== 0 ? ((grossProfit / revenue) * 100).toFixed(1) : '0.0';
                     return (
                       <td key={m} className="border border-gray-300 px-3 py-3 text-center font-bold text-green-700 text-base">
-                        {formatCurrency(grossProfit)}
+                        <div>{formatCurrency(grossProfit)}</div>
+                        <div className="text-xs text-gray-600">({percentage}%)</div>
                       </td>
                     );
                   })}
                   <td className="border border-gray-300 px-3 py-3 text-center font-bold text-green-700 text-lg">
-                    {formatCurrency(
+                    <div>{formatCurrency(
                       monthlyData.totals.revenue.total - 
-                      (Math.abs(monthlyData.totals.cogs.total) + 
-                      Object.values(openingInventory).reduce((a, b) => a + b, 0) - 
-                      Object.values(closingInventory).reduce((a, b) => a + b, 0) +
+                      (Math.abs(monthlyData.totals.cogs.total) - 
                       monthlyData.categories
                         .filter(c => c.type === 'cogs')
                         .reduce((sum, cat) => {
                           return sum + monthlyData.months.reduce((s, m) => s + getAdjustmentValue(String(cat.code), m), 0);
-                        }, 0))
-                    )}
+                        }, 0) +
+                      Object.values(openingInventory).reduce((a, b) => a + b, 0) - 
+                      Object.values(closingInventory).reduce((a, b) => a + b, 0))
+                    )}</div>
+                    <div className="text-xs text-gray-600">
+                      ({((monthlyData.totals.revenue.total - 
+                      (Math.abs(monthlyData.totals.cogs.total) - 
+                      monthlyData.categories
+                        .filter(c => c.type === 'cogs')
+                        .reduce((sum, cat) => {
+                          return sum + monthlyData.months.reduce((s, m) => s + getAdjustmentValue(String(cat.code), m), 0);
+                        }, 0) +
+                      Object.values(openingInventory).reduce((a, b) => a + b, 0) - 
+                      Object.values(closingInventory).reduce((a, b) => a + b, 0))) / monthlyData.totals.revenue.total * 100).toFixed(1)}%)
+                    </div>
                   </td>
                   <td className="border border-gray-300"></td>
                 </tr>
@@ -968,7 +909,6 @@ className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-lg hover:bg-opaci
 
             <tr><td colSpan={monthlyData.months.length + 3} className="h-3 bg-gray-50"></td></tr>
 
-            {/* ========== הוצאות תפעול ========== */}
             <tr 
               className="bg-gray-100 cursor-pointer hover:bg-gray-200 transition-colors"
               onClick={() => toggleSection('operating')}
@@ -1019,26 +959,35 @@ className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-lg hover:bg-opaci
                       onChange={handleAdjustmentChange}
                       getAdjustmentValue={getAdjustmentValue}
                       formatCurrency={formatCurrency}
+                      indented={true}
                     />
 
+                    {/* 🆕 שורת סיכום מעודכן - אחרי עדכוני 2024 */}
                     <tr className="bg-gray-100 border-t-2 border-gray-400">
                       <td className="border border-gray-300 px-4 py-2 sticky right-0 bg-gray-100 font-semibold text-gray-800">
-                        סה"כ {cat.code} - {cat.name}
+                        סה"כ {cat.code} מעודכן - {cat.name}
                       </td>
                       {monthlyData.months.map(m => {
                         const adjustment = getAdjustmentValue(String(cat.code), m);
-                        const total = Math.abs(cat.data[m] || 0) + adjustment;
+                        const categoryValue = Math.abs(cat.data[m] || 0);
+                        const adjustedTotal = categoryValue - adjustment;
+                        const revenue = monthlyData.totals.revenue[m] || 0;
+                        const percentage = revenue !== 0 ? ((adjustedTotal / revenue) * 100).toFixed(1) : '0.0';
                         return (
-                          <td key={m} className="border border-gray-300 px-3 py-2 text-center font-bold text-gray-800">
-                            {formatCurrency(total)}
+                          <td key={m} className="border border-gray-300 px-3 py-2 text-center font-bold text-gray-900">
+                            <div>{formatCurrency(adjustedTotal)}</div>
+                            <div className="text-xs text-gray-600">({percentage}%)</div>
                           </td>
                         );
                       })}
-                      <td className="border border-gray-300 px-3 py-2 text-center font-bold text-gray-800">
-                        {formatCurrency(
-                          Math.abs(cat.data.total) + 
+                      <td className="border border-gray-300 px-3 py-2 text-center font-bold text-gray-900">
+                        <div>{formatCurrency(
+                          Math.abs(cat.data.total) - 
                           monthlyData.months.reduce((sum, m) => sum + getAdjustmentValue(String(cat.code), m), 0)
-                        )}
+                        )}</div>
+                        <div className="text-xs text-gray-600">
+                          ({((Math.abs(cat.data.total) - monthlyData.months.reduce((sum, m) => sum + getAdjustmentValue(String(cat.code), m), 0)) / monthlyData.totals.revenue.total * 100).toFixed(1)}%)
+                        </div>
                       </td>
                       <td className="border border-gray-300"></td>
                     </tr>
@@ -1053,39 +1002,59 @@ className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-lg hover:bg-opaci
                     const cogsAdjustments = monthlyData.categories
                       .filter(c => c.type === 'cogs')
                       .reduce((sum, cat) => sum + getAdjustmentValue(String(cat.code), m), 0);
-                    const cogsCost = Math.abs(monthlyData.totals.cogs[m] || 0) + (openingInventory[m] || 0) - (closingInventory[m] || 0) + cogsAdjustments;
+                    const cogsCost = Math.abs(monthlyData.totals.cogs[m] || 0) - cogsAdjustments + (openingInventory[m] || 0) - (closingInventory[m] || 0);
                     const grossProfit = (monthlyData.totals.revenue[m] || 0) - cogsCost;
                     
                     const operatingAdjustments = monthlyData.categories
                       .filter(c => c.type === 'operating')
                       .reduce((sum, cat) => sum + getAdjustmentValue(String(cat.code), m), 0);
-                    const operatingExpenses = Math.abs(monthlyData.totals.operating[m] || 0) + operatingAdjustments;
+                    const operatingExpenses = Math.abs(monthlyData.totals.operating[m] || 0) - operatingAdjustments;
                     const operatingProfit = grossProfit - operatingExpenses;
+                    const revenue = monthlyData.totals.revenue[m] || 0;
+                    const percentage = revenue !== 0 ? ((operatingProfit / revenue) * 100).toFixed(1) : '0.0';
                     
                     return (
                       <td key={m} className="border border-gray-300 px-3 py-3 text-center font-bold text-emerald-700 text-base">
-                        {formatCurrency(operatingProfit)}
+                        <div>{formatCurrency(operatingProfit)}</div>
+                        <div className="text-xs text-gray-600">({percentage}%)</div>
                       </td>
                     );
                   })}
                   <td className="border border-gray-300 px-3 py-3 text-center font-bold text-emerald-700 text-lg">
-                    {formatCurrency(
+                    <div>{formatCurrency(
                       (monthlyData.totals.revenue.total - 
-                      (Math.abs(monthlyData.totals.cogs.total) + 
-                      Object.values(openingInventory).reduce((a, b) => a + b, 0) - 
-                      Object.values(closingInventory).reduce((a, b) => a + b, 0) +
+                      (Math.abs(monthlyData.totals.cogs.total) - 
                       monthlyData.categories
                         .filter(c => c.type === 'cogs')
                         .reduce((sum, cat) => {
                           return sum + monthlyData.months.reduce((s, m) => s + getAdjustmentValue(String(cat.code), m), 0);
-                        }, 0))) -
-                      (Math.abs(monthlyData.totals.operating.total) +
+                        }, 0) +
+                      Object.values(openingInventory).reduce((a, b) => a + b, 0) - 
+                      Object.values(closingInventory).reduce((a, b) => a + b, 0))) -
+                      (Math.abs(monthlyData.totals.operating.total) -
                       monthlyData.categories
                         .filter(c => c.type === 'operating')
                         .reduce((sum, cat) => {
                           return sum + monthlyData.months.reduce((s, m) => s + getAdjustmentValue(String(cat.code), m), 0);
                         }, 0))
-                    )}
+                    )}</div>
+                    <div className="text-xs text-gray-600">
+                      ({(((monthlyData.totals.revenue.total - 
+                      (Math.abs(monthlyData.totals.cogs.total) - 
+                      monthlyData.categories
+                        .filter(c => c.type === 'cogs')
+                        .reduce((sum, cat) => {
+                          return sum + monthlyData.months.reduce((s, m) => s + getAdjustmentValue(String(cat.code), m), 0);
+                        }, 0) +
+                      Object.values(openingInventory).reduce((a, b) => a + b, 0) - 
+                      Object.values(closingInventory).reduce((a, b) => a + b, 0))) -
+                      (Math.abs(monthlyData.totals.operating.total) -
+                      monthlyData.categories
+                        .filter(c => c.type === 'operating')
+                        .reduce((sum, cat) => {
+                          return sum + monthlyData.months.reduce((s, m) => s + getAdjustmentValue(String(cat.code), m), 0);
+                        }, 0))) / monthlyData.totals.revenue.total * 100).toFixed(1)}%)
+                    </div>
                   </td>
                   <td className="border border-gray-300"></td>
                 </tr>
@@ -1094,7 +1063,6 @@ className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-lg hover:bg-opaci
 
             <tr><td colSpan={monthlyData.months.length + 3} className="h-3 bg-gray-50"></td></tr>
 
-            {/* ========== הוצאות מימון ========== */}
             <tr 
               className="bg-slate-100 cursor-pointer hover:bg-slate-200 transition-colors"
               onClick={() => toggleSection('financial')}
@@ -1145,26 +1113,35 @@ className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-lg hover:bg-opaci
                       onChange={handleAdjustmentChange}
                       getAdjustmentValue={getAdjustmentValue}
                       formatCurrency={formatCurrency}
+                      indented={true}
                     />
 
+                    {/* 🆕 שורת סיכום מעודכן - אחרי עדכוני 2024 */}
                     <tr className="bg-slate-100 border-t-2 border-slate-400">
                       <td className="border border-gray-300 px-4 py-2 sticky right-0 bg-slate-100 font-semibold text-slate-800">
-                        סה"כ {cat.code} - {cat.name}
+                        סה"כ {cat.code} מעודכן - {cat.name}
                       </td>
                       {monthlyData.months.map(m => {
                         const adjustment = getAdjustmentValue(String(cat.code), m);
-                        const total = Math.abs(cat.data[m] || 0) + adjustment;
+                        const categoryValue = Math.abs(cat.data[m] || 0);
+                        const adjustedTotal = categoryValue - adjustment;
+                        const revenue = monthlyData.totals.revenue[m] || 0;
+                        const percentage = revenue !== 0 ? ((adjustedTotal / revenue) * 100).toFixed(1) : '0.0';
                         return (
-                          <td key={m} className="border border-gray-300 px-3 py-2 text-center font-bold text-slate-800">
-                            {formatCurrency(total)}
+                          <td key={m} className="border border-gray-300 px-3 py-2 text-center font-bold text-slate-900">
+                            <div>{formatCurrency(adjustedTotal)}</div>
+                            <div className="text-xs text-gray-600">({percentage}%)</div>
                           </td>
                         );
                       })}
-                      <td className="border border-gray-300 px-3 py-2 text-center font-bold text-slate-800">
-                        {formatCurrency(
-                          Math.abs(cat.data.total) + 
+                      <td className="border border-gray-300 px-3 py-2 text-center font-bold text-slate-900">
+                        <div>{formatCurrency(
+                          Math.abs(cat.data.total) - 
                           monthlyData.months.reduce((sum, m) => sum + getAdjustmentValue(String(cat.code), m), 0)
-                        )}
+                        )}</div>
+                        <div className="text-xs text-gray-600">
+                          ({((Math.abs(cat.data.total) - monthlyData.months.reduce((sum, m) => sum + getAdjustmentValue(String(cat.code), m), 0)) / monthlyData.totals.revenue.total * 100).toFixed(1)}%)
+                        </div>
                       </td>
                       <td className="border border-gray-300"></td>
                     </tr>
@@ -1179,51 +1156,77 @@ className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-lg hover:bg-opaci
                     const cogsAdjustments = monthlyData.categories
                       .filter(c => c.type === 'cogs')
                       .reduce((sum, cat) => sum + getAdjustmentValue(String(cat.code), m), 0);
-                    const cogsCost = Math.abs(monthlyData.totals.cogs[m] || 0) + (openingInventory[m] || 0) - (closingInventory[m] || 0) + cogsAdjustments;
+                    const cogsCost = Math.abs(monthlyData.totals.cogs[m] || 0) - cogsAdjustments + (openingInventory[m] || 0) - (closingInventory[m] || 0);
                     const grossProfit = (monthlyData.totals.revenue[m] || 0) - cogsCost;
                     
                     const operatingAdjustments = monthlyData.categories
                       .filter(c => c.type === 'operating')
                       .reduce((sum, cat) => sum + getAdjustmentValue(String(cat.code), m), 0);
-                    const operatingExpenses = Math.abs(monthlyData.totals.operating[m] || 0) + operatingAdjustments;
+                    const operatingExpenses = Math.abs(monthlyData.totals.operating[m] || 0) - operatingAdjustments;
                     const operatingProfit = grossProfit - operatingExpenses;
                     
                     const financialAdjustments = monthlyData.categories
                       .filter(c => c.type === 'financial')
                       .reduce((sum, cat) => sum + getAdjustmentValue(String(cat.code), m), 0);
-                    const financialExpenses = Math.abs(monthlyData.totals.financial[m] || 0) + financialAdjustments;
+                    const financialExpenses = Math.abs(monthlyData.totals.financial[m] || 0) - financialAdjustments;
                     const netProfit = operatingProfit - financialExpenses;
+                    const revenue = monthlyData.totals.revenue[m] || 0;
+                    const percentage = revenue !== 0 ? ((netProfit / revenue) * 100).toFixed(1) : '0.0';
                     
                     return (
                       <td key={m} className="border border-gray-300 px-3 py-3 text-center font-bold text-teal-700 text-base">
-                        {formatCurrency(netProfit)}
+                        <div>{formatCurrency(netProfit)}</div>
+                        <div className="text-xs text-gray-600">({percentage}%)</div>
                       </td>
                     );
                   })}
                   <td className="border border-gray-300 px-3 py-3 text-center font-bold text-teal-700 text-xl">
-                    {formatCurrency(
+                    <div>{formatCurrency(
                       (monthlyData.totals.revenue.total - 
-                      (Math.abs(monthlyData.totals.cogs.total) + 
-                      Object.values(openingInventory).reduce((a, b) => a + b, 0) - 
-                      Object.values(closingInventory).reduce((a, b) => a + b, 0) +
+                      (Math.abs(monthlyData.totals.cogs.total) - 
                       monthlyData.categories
                         .filter(c => c.type === 'cogs')
                         .reduce((sum, cat) => {
                           return sum + monthlyData.months.reduce((s, m) => s + getAdjustmentValue(String(cat.code), m), 0);
-                        }, 0))) -
-                      (Math.abs(monthlyData.totals.operating.total) +
+                        }, 0) +
+                      Object.values(openingInventory).reduce((a, b) => a + b, 0) - 
+                      Object.values(closingInventory).reduce((a, b) => a + b, 0))) -
+                      (Math.abs(monthlyData.totals.operating.total) -
                       monthlyData.categories
                         .filter(c => c.type === 'operating')
                         .reduce((sum, cat) => {
                           return sum + monthlyData.months.reduce((s, m) => s + getAdjustmentValue(String(cat.code), m), 0);
                         }, 0)) -
-                      (Math.abs(monthlyData.totals.financial.total) +
+                      (Math.abs(monthlyData.totals.financial.total) -
                       monthlyData.categories
                         .filter(c => c.type === 'financial')
                         .reduce((sum, cat) => {
                           return sum + monthlyData.months.reduce((s, m) => s + getAdjustmentValue(String(cat.code), m), 0);
                         }, 0))
-                    )}
+                    )}</div>
+                    <div className="text-xs text-gray-600">
+                      ({(((monthlyData.totals.revenue.total - 
+                      (Math.abs(monthlyData.totals.cogs.total) - 
+                      monthlyData.categories
+                        .filter(c => c.type === 'cogs')
+                        .reduce((sum, cat) => {
+                          return sum + monthlyData.months.reduce((s, m) => s + getAdjustmentValue(String(cat.code), m), 0);
+                        }, 0) +
+                      Object.values(openingInventory).reduce((a, b) => a + b, 0) - 
+                      Object.values(closingInventory).reduce((a, b) => a + b, 0))) -
+                      (Math.abs(monthlyData.totals.operating.total) -
+                      monthlyData.categories
+                        .filter(c => c.type === 'operating')
+                        .reduce((sum, cat) => {
+                          return sum + monthlyData.months.reduce((s, m) => s + getAdjustmentValue(String(cat.code), m), 0);
+                        }, 0)) -
+                      (Math.abs(monthlyData.totals.financial.total) -
+                      monthlyData.categories
+                        .filter(c => c.type === 'financial')
+                        .reduce((sum, cat) => {
+                          return sum + monthlyData.months.reduce((s, m) => s + getAdjustmentValue(String(cat.code), m), 0);
+                        }, 0))) / monthlyData.totals.revenue.total * 100).toFixed(1)}%)
+                    </div>
                   </td>
                   <td className="border border-gray-300"></td>
                 </tr>
@@ -1233,7 +1236,6 @@ className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-lg hover:bg-opaci
         </table>
       </div>
 
-      {/* BiurModal */}
       <BiurModal
         isOpen={showBiurModal}
         data={biurData}
@@ -1241,30 +1243,26 @@ className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-lg hover:bg-opaci
         formatCurrency={formatCurrency}
       />
 
+      <InventoryEditorModal
+        isOpen={showInventoryEditor}
+        onClose={() => setShowInventoryEditor(false)}
+        openingInventory={convertToYearMonth(openingInventory)}
+        closingInventory={convertToYearMonth(closingInventory)}
+        onSave={handleInventorySave}
+        formatCurrency={formatCurrency}
+      />
 
-{/* Inventory Editor Modal */}
-<InventoryEditorModal
-  isOpen={showInventoryEditor}
-  onClose={() => setShowInventoryEditor(false)}
-  openingInventory={convertToYearMonth(openingInventory)}
-  closingInventory={convertToYearMonth(closingInventory)}
-  onSave={handleInventorySave}
-  formatCurrency={formatCurrency}
-/>
+      <AdjustmentsEditorModal
+        isOpen={showAdjustmentsEditor}
+        onClose={() => setShowAdjustmentsEditor(false)}
+        adjustments={adjustments2024}
+        onSave={(newAdj) => {
+          setAdjustments2024(newAdj);
+          localStorage.setItem(STORAGE_KEYS.ADJUSTMENTS_2024, JSON.stringify(newAdj));
+        }}
+        formatCurrency={formatCurrency}
+      />
 
-{/* Adjustments Editor Modal */}
-<AdjustmentsEditorModal
-  isOpen={showAdjustmentsEditor}
-  onClose={() => setShowAdjustmentsEditor(false)}
-  adjustments={adjustments2024}
-  onSave={(newAdj) => {
-    setAdjustments2024(newAdj);
-    localStorage.setItem(STORAGE_KEYS.ADJUSTMENTS_2024, JSON.stringify(newAdj));
-  }}
-  formatCurrency={formatCurrency}
-/>
-
-      {/* 🆕 DrillDown Modal */}
       {drillDownData && (
         <DrillDownModal
           isOpen={showDrillDown}

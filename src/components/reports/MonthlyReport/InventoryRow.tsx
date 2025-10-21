@@ -10,6 +10,7 @@ interface InventoryRowProps {
   inventory: Inventory;
   onChange: (month: number, value: number) => void;
   formatCurrency: (amount: number) => string;
+  indented?: boolean;  // ✅ נוסף
 }
 
 export const InventoryRow: React.FC<InventoryRowProps> = ({
@@ -17,19 +18,17 @@ export const InventoryRow: React.FC<InventoryRowProps> = ({
   months,
   inventory,
   onChange,
-  formatCurrency
+  formatCurrency,
+  indented  // ✅ נוסף
 }) => {
   const isOpening = type === 'opening';
   const label = isOpening ? 'מלאי פתיחה' : 'מלאי סגירה';
   
-  // פונקציה לקבלת ערך מהמלאי - תומכת בשני פורמטים
   const getInventoryValue = (month: number): number => {
-    // ניסיון 1: פורמט ישן (מספר) - הפורמט הנוכחי
     if (inventory[month] !== undefined) {
       return inventory[month];
     }
     
-    // ניסיון 2: פורמט חדש "2025-01" (לעתיד)
     const yearMonthKey = `2025-${String(month).padStart(2, '0')}`;
     const inventoryAny = inventory as any;
     if (inventoryAny[yearMonthKey] !== undefined) {
@@ -39,10 +38,8 @@ export const InventoryRow: React.FC<InventoryRowProps> = ({
     return 0;
   };
   
-  // חישוב סה"כ - תומך בשני פורמטים
   const calculateTotal = (): number => {
     return Object.entries(inventory).reduce((sum, [key, value]) => {
-      // אם זה מפתח מספרי או מחרוזת בפורמט YYYY-MM
       if (typeof value === 'number') {
         return sum + value;
       }
@@ -54,7 +51,11 @@ export const InventoryRow: React.FC<InventoryRowProps> = ({
 
   return (
     <tr className="bg-blue-50">
-      <td className="border border-gray-300 px-6 py-2 sticky right-0 bg-blue-50">
+      {/* ✅ כאן השינוי - הוספת style עם paddingRight */}
+      <td 
+        className="border border-gray-300 px-6 py-2 sticky right-0 bg-blue-50"
+        style={indented ? { paddingRight: '2rem' } : {}}
+      >
         <div className="flex items-center gap-2">
           <Edit3 className="w-3 h-3 text-gray-500" />
           <span className="font-medium">{label}</span>

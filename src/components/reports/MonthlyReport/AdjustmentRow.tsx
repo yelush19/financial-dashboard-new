@@ -11,6 +11,7 @@ interface AdjustmentRowProps {
   onChange: (categoryCode: string, month: number, value: string | number) => void;
   getAdjustmentValue: (categoryCode: string, month: number) => number;
   formatCurrency: (amount: number) => string;
+  indented?: boolean;  // ✅ נוסף
 }
 
 export const AdjustmentRow: React.FC<AdjustmentRowProps> = ({
@@ -19,13 +20,18 @@ export const AdjustmentRow: React.FC<AdjustmentRowProps> = ({
   adjustments,
   onChange,
   getAdjustmentValue,
-  formatCurrency
+  formatCurrency,
+  indented  // ✅ נוסף
 }) => {
   const totalAdjustments = months.reduce((sum, m) => sum + getAdjustmentValue(categoryCode, m), 0);
 
   return (
     <tr className="bg-yellow-50">
-      <td className="border border-gray-300 px-6 py-2 sticky right-0 bg-yellow-50">
+      {/* ✅ כאן השינוי - הוספת style עם paddingRight */}
+      <td 
+        className="border border-gray-300 px-6 py-2 sticky right-0 bg-yellow-50"
+        style={indented ? { paddingRight: '2rem' } : {}}
+      >
         <div className="flex items-center gap-2">
           <Edit3 className="w-3 h-3 text-amber-600" />
           <span className="font-medium text-amber-800">התאמה 2024+</span>
