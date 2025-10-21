@@ -5,6 +5,20 @@ import { ChevronDown, ChevronRight, ChevronLeft, Save, Download, TrendingUp, Ale
 import Papa from 'papaparse';
 import _ from 'lodash';
 
+// Wix Backend Types
+declare global {
+  interface Window {
+    wixWindow?: {
+      backend?: {
+        saveInventory: (opening: string, closing: string) => Promise<any>;
+        loadInventory: () => Promise<any>;
+        saveAdjustments: (adjustments: string) => Promise<any>;
+        loadAdjustments: () => Promise<any>;
+      };
+    };
+  }
+}
+
 // Types
 import { 
   Transaction, 
@@ -73,7 +87,30 @@ const MonthlyReport: React.FC = () => {
         if (!response.ok) {
           throw new Error(`שגיאה בטעינת הקובץ: ${response.status}`);
         }
-        
+        // טעינת נתונים מ-Wix + localStorage (fallback)
+      const loadInventoryData = async () => {
+        try {
+          const wixData = await window.wixWindow?.backend?.loadInventory();
+          if (wixData?.opening) setOpeningInventory(JSON.parse(wixData.opening));
+          if (wixData?.closing) setClosingInventory(JSON.parse(wixData.closing));
+          
+          const wixAdj = await window.wixWindow?.backend?.loadAdjustments();
+          if (wixAdj?.adjustments) setAdjustments2024(JSON.parse(wixAdj.adjustments));
+        } catch (error) {
+          console.log('Wix load failed, using localStorage:', error);
+          
+          const savedOpeningInv = localStorage.getItem(STORAGE_KEYS.OPENING_INVENTORY);
+          const savedClosingInv = localStorage.getItem(STORAGE_KEYS.CLOSING_INVENTORY);
+          const savedAdjustments = localStorage.getItem(STORAGE_KEYS.ADJUSTMENTS_2024);
+          
+          if (savedOpeningInv) setOpeningInventory(JSON.parse(savedOpeningInv));
+          if (savedClosingInv) setClosingInventory(JSON.parse(savedClosingInv));
+          if (savedAdjustments) setAdjustments2024(JSON.parse(savedAdjustments));
+        }
+      };
+      
+      loadInventoryData();
+
         const text = await response.text();
         
         Papa.parse(text, {
@@ -96,15 +133,30 @@ const MonthlyReport: React.FC = () => {
                 .filter((tx: Transaction) => tx.accountKey !== 0 && tx.date);
               
               setTransactions(parsed);
-              
-              // טעינת נתונים מ-localStorage
-              const savedOpeningInv = localStorage.getItem(STORAGE_KEYS.OPENING_INVENTORY);
-              const savedClosingInv = localStorage.getItem(STORAGE_KEYS.CLOSING_INVENTORY);
-              const savedAdjustments = localStorage.getItem(STORAGE_KEYS.ADJUSTMENTS_2024);
-              
-              if (savedOpeningInv) setOpeningInventory(JSON.parse(savedOpeningInv));
-              if (savedClosingInv) setClosingInventory(JSON.parse(savedClosingInv));
-              if (savedAdjustments) setAdjustments2024(JSON.parse(savedAdjustments));
+
+           // טעינת נתונים מ-Wix + localStorage (fallback)
+const loadInventoryData = async () => {
+  try {
+    const wixData = await window.wixWindow?.backend?.loadInventory();
+    if (wixData?.opening) setOpeningInventory(JSON.parse(wixData.opening));
+    if (wixData?.closing) setClosingInventory(JSON.parse(wixData.closing));
+    
+    const wixAdj = await window.wixWindow?.backend?.loadAdjustments();
+    if (wixAdj?.adjustments) setAdjustments2024(JSON.parse(wixAdj.adjustments));
+  } catch (error) {
+    console.log('Wix load failed, using localStorage:', error);
+    
+    const savedOpeningInv = localStorage.getItem(STORAGE_KEYS.OPENING_INVENTORY);
+    const savedClosingInv = localStorage.getItem(STORAGE_KEYS.CLOSING_INVENTORY);
+    const savedAdjustments = localStorage.getItem(STORAGE_KEYS.ADJUSTMENTS_2024);
+    
+    if (savedOpeningInv) setOpeningInventory(JSON.parse(savedOpeningInv));
+    if (savedClosingInv) setClosingInventory(JSON.parse(savedClosingInv));
+    if (savedAdjustments) setAdjustments2024(JSON.parse(savedAdjustments));
+  }
+};
+
+loadInventoryData();
               
               setLoading(false);
             } catch (err) {
@@ -389,18 +441,26 @@ const MonthlyReport: React.FC = () => {
   };
 
   // טיפול בשמירה מהמודל
-  const handleInventorySave = (opening: { [key: string]: number }, closing: { [key: string]: number }) => {
-    // המרה חזרה לפורמט של המערכת
-    const convertedOpening = convertFromYearMonth(opening);
-    const convertedClosing = convertFromYearMonth(closing);
-    
-    setOpeningInventory(convertedOpening);
-    setClosingInventory(convertedClosing);
-    
-    // שמירה אוטומטית ל-localStorage
-    localStorage.setItem(STORAGE_KEYS.OPENING_INVENTORY, JSON.stringify(convertedOpening));
-    localStorage.setItem(STORAGE_KEYS.CLOSING_INVENTORY, JSON.stringify(convertedClosing));
-  };
+  const handleInventorySave = async (opening: { [key: string]: number }, closing: { [key: string]: number }) => {
+  const convertedOpening = convertFromYearMonth(opening);
+  const convertedClosing = convertFromYearMonth(closing);
+  
+  setOpeningInventory(convertedOpening);
+  setClosingInventory(convertedClosing);
+  
+  // שמירה ל-Wix + localStorage (fallback)
+  try {
+    await window.wixWindow?.backend?.saveInventory(
+      JSON.stringify(convertedOpening),
+      JSON.stringify(convertedClosing)
+    );
+  } catch (error) {
+    console.log('Wix save failed, using localStorage:', error);
+  }
+  
+  localStorage.setItem(STORAGE_KEYS.OPENING_INVENTORY, JSON.stringify(convertedOpening));
+  localStorage.setItem(STORAGE_KEYS.CLOSING_INVENTORY, JSON.stringify(convertedClosing));
+};
 
   const handleClosingInventoryChange = (month: number, value: number) => {
     const newClosing = { ...closingInventory, [month]: value };
