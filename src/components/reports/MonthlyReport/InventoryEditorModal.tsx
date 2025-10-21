@@ -170,10 +170,54 @@ export const InventoryEditorModal: React.FC<InventoryEditorModalProps> = ({
   };
 
   // שמירה
-  const handleSave = () => {
+// שמירה - מעודכן לחיבור Wix API
+const handleSave = async () => {
+  console.log('💾 Saving inventory...', { localOpening, localClosing });
+  
+  try {
+    // Save to Wix via HTTP Functions API
+    const response = await fetch('https://litay.co.il/_functions/saveInventory', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        opening: localOpening,
+        closing: localClosing
+      })
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      console.log('✅ Saved to Wix successfully');
+      
+      // Update parent component state
+      onSave(localOpening, localClosing);
+      
+      // Save to localStorage as backup
+      localStorage.setItem('inventoryOpening', JSON.stringify(localOpening));
+      localStorage.setItem('inventoryClosing', JSON.stringify(localClosing));
+      console.log('💾 Saved to localStorage as backup');
+      
+      onClose();
+    } else {
+      throw new Error(result.error || 'Failed to save to Wix');
+    }
+    
+  } catch (error) {
+    console.error('❌ Error saving to Wix:', error);
+    
+    // Fallback: Save to localStorage only
+    localStorage.setItem('inventoryOpening', JSON.stringify(localOpening));
+    localStorage.setItem('inventoryClosing', JSON.stringify(localClosing));
+    console.log('⚠️ Saved to localStorage only (Wix API unavailable)');
+    
+    // Still update parent state and close
     onSave(localOpening, localClosing);
     onClose();
-  };
+  }
+};
 
   // חישוב סכומים
   const totalOpening = Object.values(localOpening).reduce((a, b) => a + b, 0);
