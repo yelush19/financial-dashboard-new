@@ -1,7 +1,7 @@
 // src/components/reports/MonthlyReport/index.tsx
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { ChevronDown, ChevronRight, ChevronLeft, Save, Download, TrendingUp, AlertCircle, Edit3 } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronLeft, Save, Download, TrendingUp, AlertCircle, Edit3, Calculator } from 'lucide-react';
 import Papa from 'papaparse';
 import _ from 'lodash';
 
@@ -30,6 +30,8 @@ import { InventoryRow } from './InventoryRow';
 import { AdjustmentRow } from './AdjustmentRow';
 import { InventoryBackupControls } from './InventoryBackupControls';
 import { InventoryEditorModal } from './InventoryEditorModal';
+import { AdjustmentsEditorModal } from './AdjustmentsEditorModal';
+import { DrillDownModal } from './DrillDownModal';
 
 // ============ MAIN COMPONENT ============
 const MonthlyReport: React.FC = () => {
@@ -48,6 +50,17 @@ const MonthlyReport: React.FC = () => {
     transactions: []
   });
   const [showInventoryEditor, setShowInventoryEditor] = useState(false);
+  const [showAdjustmentsEditor, setShowAdjustmentsEditor] = useState(false);
+  
+  // 🆕 State למערכת drill-down
+  const [showDrillDown, setShowDrillDown] = useState(false);
+  const [drillDownData, setDrillDownData] = useState<{
+    categoryCode: number | string;
+    categoryName: string;
+    month: number;
+    monthName: string;
+    transactions: Transaction[];
+  } | null>(null);
 
   // ============ LOAD DATA ============
   useEffect(() => {
@@ -416,6 +429,35 @@ const MonthlyReport: React.FC = () => {
     return parseFloat(String(val)) || 0;
   };
 
+  // 🆕 טיפול ב-drill-down
+  const handleDrillDown = (category: CategoryData, month: number) => {
+    let txs: Transaction[];
+    
+    if (category.code === 'income_site') {
+      txs = transactions.filter(tx => 
+        tx.sortCode === 600 && tx.accountKey >= 40000 && tx.accountKey < 40020
+      );
+    } else if (category.code === 'income_superpharm') {
+      txs = transactions.filter(tx => 
+        tx.sortCode === 600 && tx.accountKey >= 40020
+      );
+    } else {
+      txs = transactions.filter(tx => tx.sortCode === category.code);
+    }
+
+    // סינון לפי חודש
+    txs = txs.filter(tx => parseInt(tx.date.split('/')[1]) === month);
+
+    setDrillDownData({
+      categoryCode: category.code,
+      categoryName: category.name,
+      month,
+      monthName: MONTH_NAMES[month - 1],
+      transactions: txs
+    });
+    setShowDrillDown(true);
+  };
+
   const showBiur = (category: CategoryData, month?: number, vendor?: VendorData) => {
     let txs: Transaction[];
     
@@ -469,7 +511,7 @@ const MonthlyReport: React.FC = () => {
       csv += `${cat.data.total}\n`;
     });
 
-    csv += `"סה""כ הכנסות",`;
+    csv += `"סה"כ הכנסות",`;
     monthlyData.months.forEach(m => {
       csv += `${monthlyData.totals.revenue[m] || 0},`;
     });
@@ -528,44 +570,71 @@ const MonthlyReport: React.FC = () => {
   return (
     <div className="w-full p-6 bg-white">
       {/* כותרת */}
-      <div className="mb-6 border-b border-gray-200 pb-4">
+      <div className="mb-6 pb-4" style={{
+        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+        padding: '1.5rem',
+        borderRadius: '12px',
+        color: 'white',
+        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+      }}>
         <div className="flex justify-between items-start">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800 mb-2">דוח רווח והפסד חודשי</h1>
-            <p className="text-sm text-gray-600">
+            <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">
+              <span className="text-4xl">📊</span>
+              דוח רווח והפסד חודשי
+            </h1>
+            <p className="text-sm opacity-90">
               תקופה: {monthlyData.months.length > 0 
                 ? `${MONTH_NAMES[monthlyData.months[0] - 1]} - ${MONTH_NAMES[monthlyData.months[monthlyData.months.length - 1] - 1]} 2025` 
                 : 'אין נתונים'}
             </p>
-            <p className="text-xs text-gray-500 mt-1">
-              {transactions.length.toLocaleString('he-IL')} תנועות | {monthlyData.categories.length} קטגוריות
+            <p className="text-xs opacity-75 mt-1">
+              📌 מקור הנתונים: קובץ טרנזקציות (TransactionMonthlyModi.csv)
             </p>
           </div>
           <div className="flex gap-2">
-            <button
-              onClick={toggleAllSections}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 flex items-center gap-2"
-            >
-              {collapsedSections.size > 0 ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-              {collapsedSections.size > 0 ? 'פתח הכל' : 'סגור הכל'}
-            </button>
-            <button
-              onClick={saveInventory}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-            >
-              <Save className="w-4 h-4" />
-              שמור מלאי
-            </button>
-            <button
-              onClick={exportToCSV}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
-            >
-              <Download className="w-4 h-4" />
-              ייצא ל-CSV
-            </button>
-          </div>
-        </div>
+  
+  <button
+    onClick={() => setShowInventoryEditor(true)}
+    className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-lg hover:bg-opacity-30 flex items-center gap-2 transition-all"
+  >
+    <Edit3 className="w-4 h-4" />
+    עדכון מלאי
+  </button>
+  <button
+    onClick={() => setShowAdjustmentsEditor(true)}
+className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-lg hover:bg-opacity-30 flex items-center gap-2 transition-all"
+>
+  <Calculator className="w-4 h-4" />
+  עדכוני 2024
+</button>
+
+  <button
+    onClick={toggleAllSections}
+    className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-lg hover:bg-opacity-30 flex items-center gap-2 transition-all"
+  >
+    {collapsedSections.size > 0 ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+    {collapsedSections.size > 0 ? 'פתח הכל' : 'סגור הכל'}
+  </button>
+  
+  <button
+    onClick={saveInventory}
+    className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-lg hover:bg-opacity-30 flex items-center gap-2 transition-all"
+  >
+    <Save className="w-4 h-4" />
+    שמור מלאי
+  </button>
+  
+  <button
+    onClick={exportToCSV}
+    className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-lg hover:bg-opacity-30 flex items-center gap-2 transition-all"
+  >
+    <Download className="w-4 h-4" />
+    ייצא ל-CSV
+ </button>
       </div>
+    </div>
+  </div>
 
       {/* כרטיסי סטטיסטיקה */}
       <StatsCards
@@ -635,7 +704,7 @@ const MonthlyReport: React.FC = () => {
                   months={monthlyData.months}
                   isExpanded={expandedCategories.has(String(cat.code))}
                   onToggle={() => toggleCategory(String(cat.code))}
-                  onShowBiur={(month) => showBiur(cat, month)}
+                  onShowBiur={(month) => month ? handleDrillDown(cat, month) : showBiur(cat)}
                   formatCurrency={formatCurrency}
                   colorClass="text-green-700"
                 />
@@ -692,28 +761,7 @@ const MonthlyReport: React.FC = () => {
 
             {!collapsedSections.has('cogs') && (
               <>
-                <tr>
-                  <td colSpan={monthlyData.months.length + 3} style={{ padding: 0, border: 'none' }}>
-                    <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-blue-50 to-cyan-50 border-b border-blue-200">
-                      <InventoryBackupControls
-                        openingInventory={openingInventory}
-                        closingInventory={closingInventory}
-                        onImport={(opening, closing) => {
-                          setOpeningInventory(opening);
-                          setClosingInventory(closing);
-                        }}
-                      />
-                      <button
-                        onClick={() => setShowInventoryEditor(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors shadow-sm"
-                      >
-                        <Edit3 className="w-4 h-4" />
-                        ערוך מלאי
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-
+           
                 <InventoryRow
                   type="opening"
                   months={monthlyData.months}
@@ -729,7 +777,7 @@ const MonthlyReport: React.FC = () => {
                       months={monthlyData.months}
                       isExpanded={expandedCategories.has(String(cat.code))}
                       onToggle={() => toggleCategory(String(cat.code))}
-                      onShowBiur={(month) => showBiur(cat, month)}
+                      onShowBiur={(month) => month ? handleDrillDown(cat, month) : showBiur(cat)}
                       formatCurrency={formatCurrency}
                     />
                     
@@ -880,7 +928,7 @@ const MonthlyReport: React.FC = () => {
                       months={monthlyData.months}
                       isExpanded={expandedCategories.has(String(cat.code))}
                       onToggle={() => toggleCategory(String(cat.code))}
-                      onShowBiur={(month) => showBiur(cat, month)}
+                      onShowBiur={(month) => month ? handleDrillDown(cat, month) : showBiur(cat)}
                       formatCurrency={formatCurrency}
                     />
                     
@@ -1006,7 +1054,7 @@ const MonthlyReport: React.FC = () => {
                       months={monthlyData.months}
                       isExpanded={expandedCategories.has(String(cat.code))}
                       onToggle={() => toggleCategory(String(cat.code))}
-                      onShowBiur={(month) => showBiur(cat, month)}
+                      onShowBiur={(month) => month ? handleDrillDown(cat, month) : showBiur(cat)}
                       formatCurrency={formatCurrency}
                     />
                     
@@ -1125,15 +1173,45 @@ const MonthlyReport: React.FC = () => {
         formatCurrency={formatCurrency}
       />
 
-      {/* Inventory Editor Modal */}
-      <InventoryEditorModal
-        isOpen={showInventoryEditor}
-        onClose={() => setShowInventoryEditor(false)}
-        openingInventory={convertToYearMonth(openingInventory)}
-        closingInventory={convertToYearMonth(closingInventory)}
-        onSave={handleInventorySave}
-        formatCurrency={formatCurrency}
-      />
+
+{/* Inventory Editor Modal */}
+<InventoryEditorModal
+  isOpen={showInventoryEditor}
+  onClose={() => setShowInventoryEditor(false)}
+  openingInventory={convertToYearMonth(openingInventory)}
+  closingInventory={convertToYearMonth(closingInventory)}
+  onSave={handleInventorySave}
+  formatCurrency={formatCurrency}
+/>
+
+{/* Adjustments Editor Modal */}
+<AdjustmentsEditorModal
+  isOpen={showAdjustmentsEditor}
+  onClose={() => setShowAdjustmentsEditor(false)}
+  adjustments={adjustments2024}
+  onSave={(newAdj) => {
+    setAdjustments2024(newAdj);
+    localStorage.setItem(STORAGE_KEYS.ADJUSTMENTS_2024, JSON.stringify(newAdj));
+  }}
+  formatCurrency={formatCurrency}
+/>
+
+      {/* 🆕 DrillDown Modal */}
+      {drillDownData && (
+        <DrillDownModal
+          isOpen={showDrillDown}
+          onClose={() => {
+            setShowDrillDown(false);
+            setDrillDownData(null);
+          }}
+          categoryCode={drillDownData.categoryCode}
+          categoryName={drillDownData.categoryName}
+          month={drillDownData.month}
+          monthName={drillDownData.monthName}
+          transactions={drillDownData.transactions}
+          formatCurrency={formatCurrency}
+        />
+      )}
     </div>
   );
 };

@@ -66,24 +66,47 @@ const formatMonthDisplay = (key: string): string => {
   return `${MONTH_NAMES[month - 1]} ${year}`;
 };
 
-// זיהוי חודשים קיימים מהנתונים
+// יצירת חודשים דינמית - רב-שנתית!
 const getExistingMonths = (opening: Inventory, closing: Inventory): MonthDisplay[] => {
   const allKeys = new Set([
     ...Object.keys(opening),
     ...Object.keys(closing)
   ]);
   
-  return Array.from(allKeys)
-    .sort()
-    .map(key => {
-      const { year, month } = parseMonthKey(key);
-      return {
+  // אם יש חודשים קיימים - השתמש בהם
+  if (allKeys.size > 0) {
+    return Array.from(allKeys)
+      .sort()
+      .map(key => {
+        const { year, month } = parseMonthKey(key);
+        return {
+          key,
+          year,
+          month,
+          display: formatMonthDisplay(key)
+        };
+      });
+  }
+  
+  // אם אין חודשים - צור מינואר 2025 והלאה (3 שנים)
+  const months: MonthDisplay[] = [];
+  const startYear = 2025;
+  const endYear = 2027; // 2025, 2026, 2027
+  
+  // 📅 כל החודשים מ-2025 עד 2027
+  for (let year = startYear; year <= endYear; year++) {
+    for (let month = 1; month <= 12; month++) {
+      const key = createMonthKey(year, month);
+      months.push({
         key,
         year,
         month,
         display: formatMonthDisplay(key)
-      };
-    });
+      });
+    }
+  }
+  
+  return months;
 };
 
 // פורמט מספר עם פסיקים
@@ -222,15 +245,34 @@ export const InventoryEditorModal: React.FC<InventoryEditorModalProps> = ({
                       <div className="text-xs text-gray-400 mt-0.5">{monthData.key}</div>
                     </td>
                     
-                    {/* מלאי פתיחה - קריאה בלבד */}
-                    <td className="border border-gray-300 px-4 py-3 text-center bg-gray-50">
-                      <div className="text-gray-600 font-medium">
-                        {formatNumber(localOpening[monthData.key] || 0)}
-                      </div>
-                      <div className="text-xs text-gray-400 mt-1">
-                        (אוטומטי)
-                      </div>
-                    </td>
+                  {/* מלאי פתיחה - עריכה רק לינואר 2025 */}
+<td className="border border-gray-300 px-4 py-3 text-center bg-gray-50">
+  {monthData.key === '2025-01' ? (
+    // ✅ ינואר 2025 - ניתן לעריכה
+    <input
+      type="text"
+      inputMode="numeric"
+      className="w-full px-3 py-2 border-2 border-green-300 rounded-lg text-center font-medium focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none bg-white"
+      value={formatNumber(localOpening[monthData.key] || 0)}
+      onChange={(e) => {
+        const numValue = parseNumber(e.target.value);
+        setLocalOpening({...localOpening, [monthData.key]: numValue});
+      }}
+      onFocus={(e) => e.target.select()}
+      placeholder="0"
+    />
+  ) : (
+    // ❌ שאר החודשים - קריאה בלבד
+    <>
+      <div className="text-gray-600 font-medium">
+        {formatNumber(localOpening[monthData.key] || 0)}
+      </div>
+      <div className="text-xs text-gray-400 mt-1">
+        (אוטומטי)
+      </div>
+    </>
+  )}
+</td>
                     
                     {/* מלאי סגירה - ניתן לעריכה */}
                     <td className="border border-gray-300 px-4 py-3 text-center">

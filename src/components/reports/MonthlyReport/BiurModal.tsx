@@ -24,7 +24,7 @@ export const BiurModal: React.FC<BiurModalProps> = ({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-7xl w-full max-h-[90vh] overflow-hidden">
-        {/* כותרת */}
+        {/* Header */}
         <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-emerald-50 to-teal-50">
           <div>
             <h3 className="text-lg font-bold text-gray-800">{data.title}</h3>
@@ -41,7 +41,7 @@ export const BiurModal: React.FC<BiurModalProps> = ({
           </button>
         </div>
 
-        {/* טבלת תנועות */}
+        {/* Transactions Table */}
         <div className="p-4 overflow-auto max-h-[calc(90vh-120px)]">
           <table className="w-full text-sm border-collapse">
             <thead className="bg-gray-100 sticky top-0">
@@ -76,7 +76,7 @@ export const BiurModal: React.FC<BiurModalProps> = ({
                   <td className="border border-gray-300 px-3 py-2 text-sm">
                     {tx.counterAccountName || '-'}
                   </td>
-                  <td className="border border-gray-300 px-3 py-2 text-sm text-left font-medium">
+                  <td className="border border-gray-300 px-3 py-2 text-sm text-left font-medium text-black">
                     {formatCurrency(tx.amount)}
                   </td>
                 </tr>
@@ -87,7 +87,7 @@ export const BiurModal: React.FC<BiurModalProps> = ({
                 <td colSpan={6} className="border border-gray-300 px-3 py-2 text-right font-bold">
                   סה"כ:
                 </td>
-                <td className="border border-gray-300 px-3 py-2 text-left font-bold">
+                <td className="border border-gray-300 px-3 py-2 text-left font-bold text-black">
                   {formatCurrency(totalAmount)}
                 </td>
               </tr>

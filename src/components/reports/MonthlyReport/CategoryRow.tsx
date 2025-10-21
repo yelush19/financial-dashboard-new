@@ -47,7 +47,7 @@ export const CategoryRow: React.FC<CategoryRowProps> = ({
       {months.map(m => (
         <td 
           key={m} 
-          className="border border-gray-300 px-3 py-2 text-center font-medium hover:bg-gray-100 cursor-pointer"
+          className="border border-gray-300 px-3 py-2 text-center font-medium hover:bg-emerald-50 cursor-pointer transition-colors"
           onClick={(e) => { 
             e.stopPropagation(); 
             onShowBiur(m); 
