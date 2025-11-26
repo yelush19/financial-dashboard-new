@@ -1,4 +1,4 @@
-// VendorRow.tsx - שורת ספק/לקוח (רמה 3)
+// VendorRow.tsx - שורת ספק/לקוח (חשבון ספק)
 
 import React from 'react';
 import { Plus } from 'lucide-react';
@@ -29,7 +29,7 @@ export const VendorRow: React.FC<VendorRowProps> = ({
             <Plus className="w-3 h-3" />
           </button>
           <span className="text-xs font-semibold text-purple-700 bg-purple-100 px-2 py-0.5 rounded">
-            רמה 3
+            חשבון ספק
           </span>
           <span className="text-gray-700 text-sm">
             {vendor.counterAccountName}

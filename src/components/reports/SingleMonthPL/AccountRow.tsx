@@ -1,4 +1,4 @@
-// AccountRow.tsx - שורת חשבון הוצאה/הכנסה (רמה 2)
+// AccountRow.tsx - שורת חשבון הוצאה/הכנסה (סוג הוצאה)
 
 import React, { useState } from 'react';
 import { Plus, Minus } from 'lucide-react';
@@ -70,7 +70,7 @@ export const AccountRow: React.FC<AccountRowProps> = ({
               <Plus className="w-4 h-4" />
             </button>
             <span className="text-xs font-semibold text-blue-700 bg-blue-100 px-2 py-0.5 rounded">
-              רמה 2
+              סוג הוצאה
             </span>
             <span className="font-medium text-gray-900">
               {account.accountKey}
@@ -103,7 +103,7 @@ export const AccountRow: React.FC<AccountRowProps> = ({
         </td>
       </tr>
 
-      {/* רמה 3: ספקים */}
+      {/* חשבון ספק: ספקים */}
       {isExpanded && account.vendors.map((vendor, idx) => (
         <VendorRow
           key={`${vendor.counterAccountNumber}-${idx}`}

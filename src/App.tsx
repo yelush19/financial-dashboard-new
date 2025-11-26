@@ -4,7 +4,7 @@ import HierarchicalReport from "./components/reports/HierarchicalReport";
 import MonthlyReport from "./components/reports/MonthlyReport";
 import BiurimSystem from "./components/reports/biurim/BiurimSystem";
 import { ProtectedRoute } from './components/ProtectedRoute';
-
+import SingleMonthPLReport from './components/reports/SingleMonthPL';
 
 // פלטת צבעים רשמית של ליתאי
 const LITAY = {
@@ -26,7 +26,7 @@ const LITAY = {
 const tabs = [
   { id: 'hierarchical', label: "דוח רווח והפסד", icon: FileText },
   { id: 'pivot', label: "דוח רווח והפסד חודשי", icon: BarChart3 },
-  { id: 'quarterly', label: "דוח רבעוני מתקדם", icon: TrendingUp },
+  { id: 'quarterly', label: "P&L תצוגת חודש", icon: TrendingUp },
   { id: 'biurim', label: "מערכת ביאורים", icon: FileText }
 ];
 
@@ -94,7 +94,7 @@ function App() {
             <div className="p-6">
               {selectedTab === 'hierarchical' && <HierarchicalReport />}
               {selectedTab === 'pivot' && <MonthlyReport />}
-              {selectedTab === 'quarterly' && <QuarterlyContent />}
+              {selectedTab === 'quarterly' && <SingleMonthPLReport />}
               {selectedTab === 'raw' && <RawDataContent />}
               {selectedTab === 'biurim' && <BiurimSystem />}
             </div>
