@@ -354,7 +354,7 @@ const BiurimSystem: React.FC = () => {
     }
   };
 
-  const loadTrialBalance = async () => {
+const loadTrialBalance = async () => {
     try {
       const response = await fetch('/BalanceMonthlyModi.csv');
       const text = await response.text();
@@ -367,13 +367,30 @@ const BiurimSystem: React.FC = () => {
         complete: (results) => {
           const rows = results.data as any[][];
           
-          // קריאת מיפוי sortCode
-          const accountToSortCodeMap = (window as any).__accountToSortCodeMap || new Map();
-
           const validRows: TrialBalanceRecord[] = [];
+          let currentSortCode = 0;
+          let currentSortCodeName = '';
 
           rows.forEach((row, index) => {
             if (index === 0) return;
+            
+            const colA = (row[0] || '').toString().trim();
+            const colB = (row[1] || '').toString().trim();
+            const colC = (row[2] || '').toString().trim();
+            
+            // זיהוי שורת כותרת של קוד מיון
+            if (colA === 'קוד מיון' || colA === 'קוד מיון ') {
+              currentSortCode = parseInt(colB) || 0;
+              currentSortCodeName = colC || '';
+              console.log(`📂 קוד מיון: ${currentSortCode} - ${currentSortCodeName}`);
+              return;
+            }
+            
+            // דילוג על שורות סיכום
+            if (colA.includes('סה"כ') || colA.includes('סה״כ')) return;
+            
+            // סינון קודי מיון מאזניים (קטנים מ-600)
+            if (currentSortCode < 600) return;
             
             const accountKey = parseInt(row[4] || '0');
             if (!accountKey || accountKey === 0) return;
@@ -387,13 +404,11 @@ const BiurimSystem: React.FC = () => {
               return isNaN(num) ? 0 : num;
             };
 
-            const sortCodeInfo = accountToSortCodeMap.get(accountKey) || { code: 0, name: '' };
-
             validRows.push({
               accountKey: accountKey,
               accountName: accountName,
-              sortCode: sortCodeInfo.code,
-              sortCodeName: sortCodeInfo.name,
+              sortCode: currentSortCode,
+              sortCodeName: currentSortCodeName,
               months: {
                 1: parseAmount(row[7]),
                 2: parseAmount(row[8]),
@@ -411,7 +426,7 @@ const BiurimSystem: React.FC = () => {
             });
           });
 
-          console.log('✅ טעינת מאזן בוחן הושלמה:', validRows.length);
+          console.log('✅ טעינת מאזן בוחן הושלמה:', validRows.length, 'חשבונות (קוד >= 600)');
           setTrialBalance(validRows);
         },
       });
@@ -419,7 +434,7 @@ const BiurimSystem: React.FC = () => {
       console.error('שגיאה בטעינת מאזן בוחן:', error);
     }
   };
-
+  
   // ==========================================
   // סינון תנועות מבטלות (קיים)
   // ==========================================
