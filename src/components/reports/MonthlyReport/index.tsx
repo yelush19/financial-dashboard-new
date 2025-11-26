@@ -1,5 +1,5 @@
 // src/components/reports/MonthlyReport/index.tsx
-// 🔧 גרסה מתוקנת עם כל השינויים
+// 🔧 גרסה עם 3 רמות: קטגוריה → חשבון → ספק
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { ChevronDown, ChevronRight, ChevronLeft, Save, Download, TrendingUp, AlertCircle, Edit3, Calculator } from 'lucide-react';
@@ -170,6 +170,7 @@ const MonthlyReport: React.FC = () => {
         .map(tx => parseInt(tx.date.split('/')[1]))
     )).sort((a, b) => a - b);
 
+    // 🔧 לוגיקה חדשה: קיבוץ לפי חשבון (accountKey) במקום ספק
     const processCategory = (
       code: number | string, 
       type: 'income' | 'cogs' | 'operating' | 'financial', 
@@ -184,15 +185,16 @@ const MonthlyReport: React.FC = () => {
       
       uniqueMonths.forEach(m => data[m] = 0);
       
-      const vendorGroups = _.groupBy(categoryTxs, tx => {
-        const counterNum = tx.counterAccountNumber || 0;
-        const counterName = tx.counterAccountName || tx.details.split(' ')[0] || 'לא ידוע';
-        return `${counterNum}|||${counterName}`;
+      // 🆕 קיבוץ לפי חשבון (accountKey) - רמה 2
+      const accountGroups = _.groupBy(categoryTxs, tx => {
+        const accountKey = tx.accountKey || 0;
+        const accountName = tx.accountName || 'לא ידוע';
+        return `${accountKey}|||${accountName}`;
       });
       
-      const vendors: VendorData[] = Object.entries(vendorGroups)
+      const vendors: VendorData[] = Object.entries(accountGroups)
         .map(([key, txs]) => {
-          const [counterNum, counterName] = key.split('|||');
+          const [accountKey, accountName] = key.split('|||');
           const vendorData: MonthlyData = { total: 0 };
           uniqueMonths.forEach(m => vendorData[m] = 0);
           
@@ -205,7 +207,7 @@ const MonthlyReport: React.FC = () => {
           });
           
           return {
-            name: counterNum && counterNum !== '0' ? `${counterName} - ${counterNum}` : counterName || 'לא ידוע',
+            name: accountKey && accountKey !== '0' ? `${accountName} - ${accountKey}` : accountName || 'לא ידוע',
             data: vendorData,
             transactions: txs as Transaction[]
           };
@@ -643,28 +645,11 @@ const MonthlyReport: React.FC = () => {
           scrollbarColor: `${REPORT_CONFIG.SCROLLBAR_COLOR} ${REPORT_CONFIG.SCROLLBAR_TRACK_COLOR}`
         }}
       >
-        <style>{`
-          div::-webkit-scrollbar {
-            width: ${REPORT_CONFIG.SCROLLBAR_WIDTH};
-            height: ${REPORT_CONFIG.SCROLLBAR_WIDTH};
-          }
-          div::-webkit-scrollbar-track {
-            background: ${REPORT_CONFIG.SCROLLBAR_TRACK_COLOR};
-            border-radius: 4px;
-          }
-          div::-webkit-scrollbar-thumb {
-            background: ${REPORT_CONFIG.SCROLLBAR_COLOR};
-            border-radius: 4px;
-          }
-          div::-webkit-scrollbar-thumb:hover {
-            background: #2d5f3f;
-          }
-        `}</style>
-        
         <table className="w-full border-collapse text-sm">
           <TableHeader months={monthlyData.months} />
           
           <tbody>
+            {/* הכנסות */}
             <tr 
               className="bg-green-50 cursor-pointer hover:bg-green-100 transition-colors"
               onClick={() => toggleSection('income')}
@@ -728,18 +713,19 @@ const MonthlyReport: React.FC = () => {
 
             <tr><td colSpan={monthlyData.months.length + 3} className="h-3 bg-gray-50"></td></tr>
 
+            {/* עלות המכר */}
             <tr 
-              className="bg-orange-50 cursor-pointer hover:bg-orange-100 transition-colors"
+              className="bg-gray-100 cursor-pointer hover:bg-gray-200 transition-colors"
               onClick={() => toggleSection('cogs')}
             >
-              <td colSpan={monthlyData.months.length + 3} className="border border-gray-300 px-4 py-3 font-bold text-orange-800">
+              <td colSpan={monthlyData.months.length + 3} className="border border-gray-300 px-4 py-3 font-bold text-gray-800">
                 <div className="flex items-center gap-2">
                   {collapsedSections.has('cogs') ? 
                     <ChevronLeft className="w-5 h-5" /> : 
                     <ChevronDown className="w-5 h-5" />
                   }
                   <span>עלות המכר</span>
-                  <span className="text-sm font-normal text-orange-600">(כולל מלאי)</span>
+                  <span className="text-sm font-normal text-gray-600">(כולל מלאי)</span>
                 </div>
               </td>
             </tr>
@@ -774,7 +760,7 @@ const MonthlyReport: React.FC = () => {
                         months={monthlyData.months}
                         onShowBiur={(month) => showBiur(cat, month, vendor)}
                         formatCurrency={formatCurrency}
-                        bgColor="bg-orange-50"
+                        bgColor="bg-gray-50"
                       />
                     ))}
                     
@@ -788,25 +774,24 @@ const MonthlyReport: React.FC = () => {
                       indented={true}
                     />
 
-                    {/* 🆕 שורת סיכום מעודכן - אחרי עדכוני 2024 */}
-                    <tr className="bg-orange-100 border-t-2 border-orange-400">
-                      <td className="border border-gray-300 px-4 py-2 sticky right-0 bg-orange-100 font-semibold text-orange-800">
+                    <tr className="bg-gray-100 border-t-2 border-gray-400">
+                      <td className="border border-gray-300 px-4 py-2 sticky right-0 bg-gray-100 font-semibold text-gray-800">
                         סה"כ {cat.code} מעודכן - {cat.name}
                       </td>
                       {monthlyData.months.map(m => {
                         const adjustment = getAdjustmentValue(String(cat.code), m);
                         const categoryValue = Math.abs(cat.data[m] || 0);
-                        const adjustedTotal = categoryValue - adjustment; // חיסור כי עדכוני 2024 צריכים להקטין
+                        const adjustedTotal = categoryValue - adjustment;
                         const revenue = monthlyData.totals.revenue[m] || 0;
                         const percentage = revenue !== 0 ? ((adjustedTotal / revenue) * 100).toFixed(1) : '0.0';
                         return (
-                          <td key={m} className="border border-gray-300 px-3 py-2 text-center font-bold text-orange-900">
+                          <td key={m} className="border border-gray-300 px-3 py-2 text-center font-bold text-gray-900">
                             <div>{formatCurrency(adjustedTotal)}</div>
                             <div className="text-xs text-gray-600">({percentage}%)</div>
                           </td>
                         );
                       })}
-                      <td className="border border-gray-300 px-3 py-2 text-center font-bold text-orange-900">
+                      <td className="border border-gray-300 px-3 py-2 text-center font-bold text-gray-900">
                         <div>{formatCurrency(
                           Math.abs(cat.data.total) - 
                           monthlyData.months.reduce((sum, m) => sum + getAdjustmentValue(String(cat.code), m), 0)
@@ -829,8 +814,8 @@ const MonthlyReport: React.FC = () => {
                   indented={true}
                 />
 
-                <tr className="bg-orange-50 border-2 border-orange-400">
-                  <td className="border border-gray-300 px-4 py-3 font-bold text-orange-800 sticky right-0 bg-orange-50">
+                <tr className="bg-gray-100 border-2 border-gray-400">
+                  <td className="border border-gray-300 px-4 py-3 font-bold text-gray-800 sticky right-0 bg-gray-100">
                     סה"כ עלות המכר
                   </td>
                   {monthlyData.months.map(m => {
@@ -839,12 +824,12 @@ const MonthlyReport: React.FC = () => {
                       .reduce((sum, cat) => sum + getAdjustmentValue(String(cat.code), m), 0);
                     const cogsCost = Math.abs(monthlyData.totals.cogs[m] || 0) - cogsAdjustments + (openingInventory[m] || 0) - (closingInventory[m] || 0);
                     return (
-                      <td key={m} className="border border-gray-300 px-3 py-3 text-center font-bold text-orange-700">
+                      <td key={m} className="border border-gray-300 px-3 py-3 text-center font-bold text-gray-700">
                         {formatCurrency(cogsCost)}
                       </td>
                     );
                   })}
-                  <td className="border border-gray-300 px-3 py-3 text-center font-bold text-orange-700 text-base">
+                  <td className="border border-gray-300 px-3 py-3 text-center font-bold text-gray-700 text-base">
                     {formatCurrency(
                       Math.abs(monthlyData.totals.cogs.total) - 
                       monthlyData.categories
@@ -879,7 +864,7 @@ const MonthlyReport: React.FC = () => {
                     );
                   })}
                   <td className="border border-gray-300 px-3 py-3 text-center font-bold text-green-700 text-lg">
-                    <div>{formatCurrency(
+                    {formatCurrency(
                       monthlyData.totals.revenue.total - 
                       (Math.abs(monthlyData.totals.cogs.total) - 
                       monthlyData.categories
@@ -889,18 +874,7 @@ const MonthlyReport: React.FC = () => {
                         }, 0) +
                       Object.values(openingInventory).reduce((a, b) => a + b, 0) - 
                       Object.values(closingInventory).reduce((a, b) => a + b, 0))
-                    )}</div>
-                    <div className="text-xs text-gray-600">
-                      ({((monthlyData.totals.revenue.total - 
-                      (Math.abs(monthlyData.totals.cogs.total) - 
-                      monthlyData.categories
-                        .filter(c => c.type === 'cogs')
-                        .reduce((sum, cat) => {
-                          return sum + monthlyData.months.reduce((s, m) => s + getAdjustmentValue(String(cat.code), m), 0);
-                        }, 0) +
-                      Object.values(openingInventory).reduce((a, b) => a + b, 0) - 
-                      Object.values(closingInventory).reduce((a, b) => a + b, 0))) / monthlyData.totals.revenue.total * 100).toFixed(1)}%)
-                    </div>
+                    )}
                   </td>
                   <td className="border border-gray-300"></td>
                 </tr>
@@ -909,6 +883,7 @@ const MonthlyReport: React.FC = () => {
 
             <tr><td colSpan={monthlyData.months.length + 3} className="h-3 bg-gray-50"></td></tr>
 
+            {/* הוצאות תפעול */}
             <tr 
               className="bg-gray-100 cursor-pointer hover:bg-gray-200 transition-colors"
               onClick={() => toggleSection('operating')}
@@ -962,7 +937,6 @@ const MonthlyReport: React.FC = () => {
                       indented={true}
                     />
 
-                    {/* 🆕 שורת סיכום מעודכן - אחרי עדכוני 2024 */}
                     <tr className="bg-gray-100 border-t-2 border-gray-400">
                       <td className="border border-gray-300 px-4 py-2 sticky right-0 bg-gray-100 font-semibold text-gray-800">
                         סה"כ {cat.code} מעודכן - {cat.name}
@@ -985,17 +959,14 @@ const MonthlyReport: React.FC = () => {
                           Math.abs(cat.data.total) - 
                           monthlyData.months.reduce((sum, m) => sum + getAdjustmentValue(String(cat.code), m), 0)
                         )}</div>
-                        <div className="text-xs text-gray-600">
-                          ({((Math.abs(cat.data.total) - monthlyData.months.reduce((sum, m) => sum + getAdjustmentValue(String(cat.code), m), 0)) / monthlyData.totals.revenue.total * 100).toFixed(1)}%)
-                        </div>
                       </td>
                       <td className="border border-gray-300"></td>
                     </tr>
                   </React.Fragment>
                 ))}
 
-                <tr className="bg-emerald-50 border-2 border-emerald-400">
-                  <td className="border border-gray-300 px-4 py-3 font-bold text-emerald-800 sticky right-0 bg-emerald-50">
+                <tr className="bg-green-50 border-2 border-green-400">
+                  <td className="border border-gray-300 px-4 py-3 font-bold text-green-800 sticky right-0 bg-green-50">
                     💼 רווח תפעולי
                   </td>
                   {monthlyData.months.map(m => {
@@ -1004,7 +975,6 @@ const MonthlyReport: React.FC = () => {
                       .reduce((sum, cat) => sum + getAdjustmentValue(String(cat.code), m), 0);
                     const cogsCost = Math.abs(monthlyData.totals.cogs[m] || 0) - cogsAdjustments + (openingInventory[m] || 0) - (closingInventory[m] || 0);
                     const grossProfit = (monthlyData.totals.revenue[m] || 0) - cogsCost;
-                    
                     const operatingAdjustments = monthlyData.categories
                       .filter(c => c.type === 'operating')
                       .reduce((sum, cat) => sum + getAdjustmentValue(String(cat.code), m), 0);
@@ -1012,49 +982,15 @@ const MonthlyReport: React.FC = () => {
                     const operatingProfit = grossProfit - operatingExpenses;
                     const revenue = monthlyData.totals.revenue[m] || 0;
                     const percentage = revenue !== 0 ? ((operatingProfit / revenue) * 100).toFixed(1) : '0.0';
-                    
                     return (
-                      <td key={m} className="border border-gray-300 px-3 py-3 text-center font-bold text-emerald-700 text-base">
+                      <td key={m} className="border border-gray-300 px-3 py-3 text-center font-bold text-green-700 text-base">
                         <div>{formatCurrency(operatingProfit)}</div>
                         <div className="text-xs text-gray-600">({percentage}%)</div>
                       </td>
                     );
                   })}
-                  <td className="border border-gray-300 px-3 py-3 text-center font-bold text-emerald-700 text-lg">
-                    <div>{formatCurrency(
-                      (monthlyData.totals.revenue.total - 
-                      (Math.abs(monthlyData.totals.cogs.total) - 
-                      monthlyData.categories
-                        .filter(c => c.type === 'cogs')
-                        .reduce((sum, cat) => {
-                          return sum + monthlyData.months.reduce((s, m) => s + getAdjustmentValue(String(cat.code), m), 0);
-                        }, 0) +
-                      Object.values(openingInventory).reduce((a, b) => a + b, 0) - 
-                      Object.values(closingInventory).reduce((a, b) => a + b, 0))) -
-                      (Math.abs(monthlyData.totals.operating.total) -
-                      monthlyData.categories
-                        .filter(c => c.type === 'operating')
-                        .reduce((sum, cat) => {
-                          return sum + monthlyData.months.reduce((s, m) => s + getAdjustmentValue(String(cat.code), m), 0);
-                        }, 0))
-                    )}</div>
-                    <div className="text-xs text-gray-600">
-                      ({(((monthlyData.totals.revenue.total - 
-                      (Math.abs(monthlyData.totals.cogs.total) - 
-                      monthlyData.categories
-                        .filter(c => c.type === 'cogs')
-                        .reduce((sum, cat) => {
-                          return sum + monthlyData.months.reduce((s, m) => s + getAdjustmentValue(String(cat.code), m), 0);
-                        }, 0) +
-                      Object.values(openingInventory).reduce((a, b) => a + b, 0) - 
-                      Object.values(closingInventory).reduce((a, b) => a + b, 0))) -
-                      (Math.abs(monthlyData.totals.operating.total) -
-                      monthlyData.categories
-                        .filter(c => c.type === 'operating')
-                        .reduce((sum, cat) => {
-                          return sum + monthlyData.months.reduce((s, m) => s + getAdjustmentValue(String(cat.code), m), 0);
-                        }, 0))) / monthlyData.totals.revenue.total * 100).toFixed(1)}%)
-                    </div>
+                  <td className="border border-gray-300 px-3 py-3 text-center font-bold text-green-700 text-lg">
+                    {formatCurrency(monthlyData.totals.operatingProfit.total)}
                   </td>
                   <td className="border border-gray-300"></td>
                 </tr>
@@ -1063,18 +999,19 @@ const MonthlyReport: React.FC = () => {
 
             <tr><td colSpan={monthlyData.months.length + 3} className="h-3 bg-gray-50"></td></tr>
 
+            {/* הוצאות מימון */}
             <tr 
-              className="bg-slate-100 cursor-pointer hover:bg-slate-200 transition-colors"
+              className="bg-gray-100 cursor-pointer hover:bg-gray-200 transition-colors"
               onClick={() => toggleSection('financial')}
             >
-              <td colSpan={monthlyData.months.length + 3} className="border border-gray-300 px-4 py-3 font-bold text-slate-800">
+              <td colSpan={monthlyData.months.length + 3} className="border border-gray-300 px-4 py-3 font-bold text-gray-800">
                 <div className="flex items-center gap-2">
                   {collapsedSections.has('financial') ? 
                     <ChevronLeft className="w-5 h-5" /> : 
                     <ChevronDown className="w-5 h-5" />
                   }
                   <span>הוצאות מימון</span>
-                  <span className="text-sm font-normal text-slate-600">
+                  <span className="text-sm font-normal text-gray-600">
                     ({monthlyData.categories.filter(c => c.type === 'financial').length} קטגוריות)
                   </span>
                 </div>
@@ -1102,54 +1039,14 @@ const MonthlyReport: React.FC = () => {
                         months={monthlyData.months}
                         onShowBiur={(month) => showBiur(cat, month, vendor)}
                         formatCurrency={formatCurrency}
-                        bgColor="bg-slate-50"
+                        bgColor="bg-gray-50"
                       />
                     ))}
-                    
-                    <AdjustmentRow
-                      categoryCode={String(cat.code)}
-                      months={monthlyData.months}
-                      adjustments={adjustments2024}
-                      onChange={handleAdjustmentChange}
-                      getAdjustmentValue={getAdjustmentValue}
-                      formatCurrency={formatCurrency}
-                      indented={true}
-                    />
-
-                    {/* 🆕 שורת סיכום מעודכן - אחרי עדכוני 2024 */}
-                    <tr className="bg-slate-100 border-t-2 border-slate-400">
-                      <td className="border border-gray-300 px-4 py-2 sticky right-0 bg-slate-100 font-semibold text-slate-800">
-                        סה"כ {cat.code} מעודכן - {cat.name}
-                      </td>
-                      {monthlyData.months.map(m => {
-                        const adjustment = getAdjustmentValue(String(cat.code), m);
-                        const categoryValue = Math.abs(cat.data[m] || 0);
-                        const adjustedTotal = categoryValue - adjustment;
-                        const revenue = monthlyData.totals.revenue[m] || 0;
-                        const percentage = revenue !== 0 ? ((adjustedTotal / revenue) * 100).toFixed(1) : '0.0';
-                        return (
-                          <td key={m} className="border border-gray-300 px-3 py-2 text-center font-bold text-slate-900">
-                            <div>{formatCurrency(adjustedTotal)}</div>
-                            <div className="text-xs text-gray-600">({percentage}%)</div>
-                          </td>
-                        );
-                      })}
-                      <td className="border border-gray-300 px-3 py-2 text-center font-bold text-slate-900">
-                        <div>{formatCurrency(
-                          Math.abs(cat.data.total) - 
-                          monthlyData.months.reduce((sum, m) => sum + getAdjustmentValue(String(cat.code), m), 0)
-                        )}</div>
-                        <div className="text-xs text-gray-600">
-                          ({((Math.abs(cat.data.total) - monthlyData.months.reduce((sum, m) => sum + getAdjustmentValue(String(cat.code), m), 0)) / monthlyData.totals.revenue.total * 100).toFixed(1)}%)
-                        </div>
-                      </td>
-                      <td className="border border-gray-300"></td>
-                    </tr>
                   </React.Fragment>
                 ))}
 
-                <tr className="bg-gradient-to-r from-teal-50 to-emerald-50 border-2 border-teal-400">
-                  <td className="border border-gray-300 px-4 py-3 font-bold text-teal-800 sticky right-0 bg-gradient-to-r from-teal-50 to-emerald-50">
+                <tr className="bg-green-100 border-2 border-green-500">
+                  <td className="border border-gray-300 px-4 py-3 font-bold text-green-900 sticky right-0 bg-green-100">
                     💰💰 רווח נקי
                   </td>
                   {monthlyData.months.map(m => {
@@ -1158,75 +1055,24 @@ const MonthlyReport: React.FC = () => {
                       .reduce((sum, cat) => sum + getAdjustmentValue(String(cat.code), m), 0);
                     const cogsCost = Math.abs(monthlyData.totals.cogs[m] || 0) - cogsAdjustments + (openingInventory[m] || 0) - (closingInventory[m] || 0);
                     const grossProfit = (monthlyData.totals.revenue[m] || 0) - cogsCost;
-                    
                     const operatingAdjustments = monthlyData.categories
                       .filter(c => c.type === 'operating')
                       .reduce((sum, cat) => sum + getAdjustmentValue(String(cat.code), m), 0);
                     const operatingExpenses = Math.abs(monthlyData.totals.operating[m] || 0) - operatingAdjustments;
                     const operatingProfit = grossProfit - operatingExpenses;
-                    
-                    const financialAdjustments = monthlyData.categories
-                      .filter(c => c.type === 'financial')
-                      .reduce((sum, cat) => sum + getAdjustmentValue(String(cat.code), m), 0);
-                    const financialExpenses = Math.abs(monthlyData.totals.financial[m] || 0) - financialAdjustments;
+                    const financialExpenses = Math.abs(monthlyData.totals.financial[m] || 0);
                     const netProfit = operatingProfit - financialExpenses;
                     const revenue = monthlyData.totals.revenue[m] || 0;
                     const percentage = revenue !== 0 ? ((netProfit / revenue) * 100).toFixed(1) : '0.0';
-                    
                     return (
-                      <td key={m} className="border border-gray-300 px-3 py-3 text-center font-bold text-teal-700 text-base">
+                      <td key={m} className="border border-gray-300 px-3 py-3 text-center font-bold text-green-800 text-base">
                         <div>{formatCurrency(netProfit)}</div>
                         <div className="text-xs text-gray-600">({percentage}%)</div>
                       </td>
                     );
                   })}
-                  <td className="border border-gray-300 px-3 py-3 text-center font-bold text-teal-700 text-xl">
-                    <div>{formatCurrency(
-                      (monthlyData.totals.revenue.total - 
-                      (Math.abs(monthlyData.totals.cogs.total) - 
-                      monthlyData.categories
-                        .filter(c => c.type === 'cogs')
-                        .reduce((sum, cat) => {
-                          return sum + monthlyData.months.reduce((s, m) => s + getAdjustmentValue(String(cat.code), m), 0);
-                        }, 0) +
-                      Object.values(openingInventory).reduce((a, b) => a + b, 0) - 
-                      Object.values(closingInventory).reduce((a, b) => a + b, 0))) -
-                      (Math.abs(monthlyData.totals.operating.total) -
-                      monthlyData.categories
-                        .filter(c => c.type === 'operating')
-                        .reduce((sum, cat) => {
-                          return sum + monthlyData.months.reduce((s, m) => s + getAdjustmentValue(String(cat.code), m), 0);
-                        }, 0)) -
-                      (Math.abs(monthlyData.totals.financial.total) -
-                      monthlyData.categories
-                        .filter(c => c.type === 'financial')
-                        .reduce((sum, cat) => {
-                          return sum + monthlyData.months.reduce((s, m) => s + getAdjustmentValue(String(cat.code), m), 0);
-                        }, 0))
-                    )}</div>
-                    <div className="text-xs text-gray-600">
-                      ({(((monthlyData.totals.revenue.total - 
-                      (Math.abs(monthlyData.totals.cogs.total) - 
-                      monthlyData.categories
-                        .filter(c => c.type === 'cogs')
-                        .reduce((sum, cat) => {
-                          return sum + monthlyData.months.reduce((s, m) => s + getAdjustmentValue(String(cat.code), m), 0);
-                        }, 0) +
-                      Object.values(openingInventory).reduce((a, b) => a + b, 0) - 
-                      Object.values(closingInventory).reduce((a, b) => a + b, 0))) -
-                      (Math.abs(monthlyData.totals.operating.total) -
-                      monthlyData.categories
-                        .filter(c => c.type === 'operating')
-                        .reduce((sum, cat) => {
-                          return sum + monthlyData.months.reduce((s, m) => s + getAdjustmentValue(String(cat.code), m), 0);
-                        }, 0)) -
-                      (Math.abs(monthlyData.totals.financial.total) -
-                      monthlyData.categories
-                        .filter(c => c.type === 'financial')
-                        .reduce((sum, cat) => {
-                          return sum + monthlyData.months.reduce((s, m) => s + getAdjustmentValue(String(cat.code), m), 0);
-                        }, 0))) / monthlyData.totals.revenue.total * 100).toFixed(1)}%)
-                    </div>
+                  <td className="border border-gray-300 px-3 py-3 text-center font-bold text-green-800 text-xl">
+                    {formatCurrency(monthlyData.totals.netProfit.total)}
                   </td>
                   <td className="border border-gray-300"></td>
                 </tr>

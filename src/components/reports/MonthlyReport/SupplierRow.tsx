@@ -1,77 +1,59 @@
 // src/components/reports/MonthlyReport/SupplierRow.tsx
-// שורת ספק (רמה 3) - מתחת לחשבון הוצאה
-
 import React from 'react';
 import { Plus } from 'lucide-react';
-import { Transaction } from '../../../types/reportTypes';
+import { MonthlyData, Transaction } from '../../../types/reportTypes';
+
+interface SupplierData {
+  key: number;
+  name: string;
+  data: MonthlyData;
+  transactions: Transaction[];
+}
 
 interface SupplierRowProps {
-  supplierKey: number;
-  supplierName: string;
-  transactions: Transaction[];
+  supplier: SupplierData;
   months: number[];
-  onShowTransactions: () => void;
+  onShowBiur: (month?: number) => void;
   formatCurrency: (amount: number) => string;
-  isIncome: boolean;
+  bgColor?: string;
 }
 
 export const SupplierRow: React.FC<SupplierRowProps> = ({
-  supplierKey,
-  supplierName,
-  transactions,
+  supplier,
   months,
-  onShowTransactions,
+  onShowBiur,
   formatCurrency,
-  isIncome
+  bgColor = 'bg-gray-50'
 }) => {
-  // חישוב סכום לכל חודש
-  const monthlyTotals: Record<number, number> = {};
-  let total = 0;
-  
-  months.forEach(m => monthlyTotals[m] = 0);
-  
-  transactions.forEach(tx => {
-    const month = parseInt(tx.date.split('/')[1]);
-    if (months.includes(month)) {
-      monthlyTotals[month] += tx.amount;
-      total += tx.amount;
-    }
-  });
-
   return (
-    <tr className="bg-gray-100 hover:bg-gray-200">
-      <td className="border border-gray-300 px-12 py-1 text-xs text-gray-800 sticky right-0 bg-gray-100">
-        <div className="flex items-center gap-2">
+    <tr className={`${bgColor} hover:bg-opacity-80 transition-colors`}>
+      <td className={`border border-gray-200 px-4 py-2 sticky right-0 ${bgColor}`}>
+        <div className="flex items-center gap-2 pr-16">
           <button
-            onClick={onShowTransactions}
-            className="w-4 h-4 flex items-center justify-center rounded bg-emerald-100 hover:bg-emerald-200 text-emerald-600 transition-colors"
+            onClick={() => onShowBiur()}
+            className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-green-600"
             title="הצג תנועות"
           >
-            <Plus className="w-2.5 h-2.5" />
+            <Plus className="w-3 h-3" />
           </button>
-          <span className="text-gray-400">│ └─</span>
-          <span className="truncate">{supplierName}</span>
-          <span className="text-gray-700 text-xs">({supplierKey})</span>
+          <span className="text-gray-500 text-xs">
+            {supplier.key !== 0 ? `${supplier.name} - ${supplier.key}` : supplier.name}
+          </span>
         </div>
       </td>
       {months.map(m => (
         <td 
           key={m} 
-          className="border border-gray-300 px-2 py-1 text-center text-xs"
+          className="border border-gray-200 px-3 py-2 text-center text-gray-500 text-xs cursor-pointer hover:bg-green-50"
+          onClick={() => onShowBiur(m)}
         >
-          {isIncome
-            ? formatCurrency(monthlyTotals[m] || 0)
-            : formatCurrency(Math.abs(monthlyTotals[m] || 0))
-          }
+          {supplier.data[m] ? formatCurrency(supplier.data[m]) : ''}
         </td>
       ))}
-      <td className="border border-gray-300 px-2 py-1 text-center text-xs font-medium">
-        {isIncome
-          ? formatCurrency(total)
-          : formatCurrency(Math.abs(total))
-        }
+      <td className="border border-gray-200 px-3 py-2 text-center font-medium text-gray-600 text-xs">
+        {formatCurrency(supplier.data.total)}
       </td>
-      <td className="border border-gray-300"></td>
+      <td className="border border-gray-200"></td>
     </tr>
   );
 };
