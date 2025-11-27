@@ -1,6 +1,4 @@
 // CategoryRow.tsx - שורת קטגוריה (רמה 1)
-// הכנסות: ללא אפשרות לפתיחה, רק סיכום
-// שאר הקטגוריות: עם drill-down מלא
 
 import React, { useState } from 'react';
 import { Plus, Minus, FileText } from 'lucide-react';
@@ -12,23 +10,24 @@ interface CategoryRowProps {
   onShowBiur: (data: BiurData) => void;
   formatCurrency: (amount: number) => string;
   monthName: string;
+  totalRevenue: number; // להצגת אחוזים
 }
 
 export const CategoryRow: React.FC<CategoryRowProps> = ({
   category,
   onShowBiur,
   formatCurrency,
-  monthName
+  monthName,
+  totalRevenue
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const hasAccounts = category.accounts && category.accounts.length > 0;
-  
-  // 🔒 הכנסות: ללא אפשרות לפתיחה
-  const isIncome = category.type === 'income';
-  const canExpand = !isIncome && hasAccounts;
+
+  // חישוב אחוז מהכנסות
+  const percentage = totalRevenue > 0 ? (Math.abs(category.amount) / totalRevenue * 100) : 0;
 
   const handleToggle = () => {
-    if (canExpand) {
+    if (hasAccounts) {
       setIsExpanded(!isExpanded);
     }
   };
@@ -52,19 +51,13 @@ export const CategoryRow: React.FC<CategoryRowProps> = ({
       >
         <td className="border border-gray-300 px-4 py-2 sticky right-0 bg-white">
           <div className="flex items-center gap-2">
-            {/* רק אם אפשר להרחיב (לא הכנסות) */}
-            {canExpand && (
+            {hasAccounts && (
               isExpanded ? 
                 <Minus className="w-4 h-4 text-gray-600" /> : 
                 <Plus className="w-4 h-4 text-gray-600" />
             )}
-            {/* אם הכנסות - רווח קטן במקום האייקון */}
-            {isIncome && <span className="w-4"></span>}
-            
             <span className="font-medium">{displayCode} - {category.name}</span>
-            
-            {/* רק למי שיש חשבונות ולא הכנסות */}
-            {canExpand && (
+            {hasAccounts && (
               <span className="text-xs text-gray-500">({category.accounts.length} חשבונות)</span>
             )}
           </div>
@@ -81,6 +74,9 @@ export const CategoryRow: React.FC<CategoryRowProps> = ({
             : formatCurrency(Math.abs(category.amount))
           }
         </td>
+        <td className="border border-gray-300 px-3 py-2 text-center text-sm text-gray-600">
+          {percentage.toFixed(1)}%
+        </td>
         <td className="border border-gray-300 px-2 py-2 text-center">
           <FileText 
             className="w-4 h-4 text-gray-600 mx-auto cursor-pointer hover:text-gray-800"
@@ -92,8 +88,8 @@ export const CategoryRow: React.FC<CategoryRowProps> = ({
         </td>
       </tr>
 
-      {/* רמה 2: חשבונות - רק אם לא הכנסות ומורחב */}
-      {isExpanded && !isIncome && category.accounts.map((account, idx) => (
+      {/* רמה 2: חשבונות */}
+      {isExpanded && category.accounts.map((account, idx) => (
         <AccountRow
           key={`${account.accountKey}-${idx}`}
           account={account}

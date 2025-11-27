@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { FileText, BarChart3, Database, TrendingUp, Phone, Mail, MapPin, ExternalLink, Shield, Zap, Award } from "lucide-react";
 import HierarchicalReport from "./components/reports/HierarchicalReport";
-import MonthlyReport from "./components/reports/MonthlyReport";
+import MonthlyReport from "./components/reports/MonthlyReport/index";
 import BiurimSystem from "./components/reports/biurim/BiurimSystem";
 import { ProtectedRoute } from './components/ProtectedRoute';
-import SingleMonthPLReport from './components/reports/SingleMonthPL';
+import SingleMonthPLReport from './components/reports/SingleMonthPL_Filtered/SingleMonthPL__index';
 
 // פלטת צבעים רשמית של ליתאי
 const LITAY = {
@@ -25,8 +25,8 @@ const LITAY = {
 
 const tabs = [
   { id: 'hierarchical', label: "דוח רווח והפסד", icon: FileText },
-  { id: 'pivot', label: "דוח רווח והפסד חודשי", icon: BarChart3 },
-  { id: 'quarterly', label: "P&L תצוגת חודש", icon: TrendingUp },
+  { id: 'pivot', label: "P&L מצטבר חודשי", icon: BarChart3 },
+  { id: 'quarterly', label: "P&L חודש בודד", icon: TrendingUp },
   { id: 'biurim', label: "מערכת ביאורים", icon: FileText }
 ];
 

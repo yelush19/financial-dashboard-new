@@ -1,6 +1,7 @@
 // src/types/reportTypes.ts
 
 export interface Transaction {
+  koteret: number;
   sortCode: number | null;
   sortCodeName: string;
   accountKey: number;

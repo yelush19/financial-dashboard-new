@@ -1,8 +1,10 @@
 // src/components/reports/MonthlyReport/VendorRow.tsx
+// 🔥 גרסה עם סינון דינמי - 27/11/2025
 import React, { useState } from 'react';
 import { ChevronLeft, ChevronDown, Plus } from 'lucide-react';
 import { VendorData, CategoryData, MonthlyData, Transaction } from '../../../types/reportTypes';
 import { SupplierRow } from './SupplierRow';
+import { EXCLUDED_COUNTER_ACCOUNTS } from '../../../utils/transactionFilter';
 import _ from 'lodash';
 
 interface SupplierData {
@@ -32,7 +34,9 @@ export const VendorRow: React.FC<VendorRowProps> = ({
   const [isExpanded, setIsExpanded] = useState(false);
 
   // קיבוץ התנועות לפי ספק (counterAccountNumber)
+  // 🔥 התנועות כבר מסוננות ב-index.tsx, כאן רק מסננים ספקים טכניים (37999)
   const suppliers: SupplierData[] = React.useMemo(() => {
+    // קיבוץ לפי ספק
     const grouped = _.groupBy(vendor.transactions, tx => {
       const counterNum = tx.counterAccountNumber || 0;
       const counterName = tx.counterAccountName || tx.details?.split(' ')[0] || 'לא ידוע';
@@ -42,6 +46,13 @@ export const VendorRow: React.FC<VendorRowProps> = ({
     return Object.entries(grouped)
       .map(([key, txs]) => {
         const [counterNum, counterName] = key.split('|||');
+        const counterAccountNumber = parseInt(counterNum) || 0;
+        
+        // 🔥 סינון חשבונות טכניים (37999) מהצגה כספקים
+        if (EXCLUDED_COUNTER_ACCOUNTS.has(counterAccountNumber)) {
+          return null;
+        }
+        
         const supplierData: MonthlyData = { total: 0 };
         months.forEach(m => supplierData[m] = 0);
         
@@ -54,13 +65,13 @@ export const VendorRow: React.FC<VendorRowProps> = ({
         });
         
         return {
-          key: parseInt(counterNum) || 0,
+          key: counterAccountNumber,
           name: counterName || 'לא ידוע',
           data: supplierData,
           transactions: txs as Transaction[]
         };
       })
-      .filter(s => s.data.total !== 0)
+      .filter((s): s is SupplierData => s !== null && s.data.total !== 0)
       .sort((a, b) => Math.abs(b.data.total) - Math.abs(a.data.total));
   }, [vendor.transactions, months]);
 
@@ -123,7 +134,6 @@ export const VendorRow: React.FC<VendorRowProps> = ({
           supplier={supplier}
           months={months}
           onShowBiur={(month) => {
-            // TODO: implement supplier-level biur
             onShowBiur(month);
           }}
           formatCurrency={formatCurrency}

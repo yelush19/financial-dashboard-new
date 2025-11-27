@@ -1,10 +1,12 @@
 // src/components/reports/MonthlyReport/index.tsx
-// 🔧 גרסה עם 3 רמות: קטגוריה → חשבון → ספק
-
+// 🔥 גרסה עם סינון דינמי - 27/11/2025
 import React, { useState, useEffect, useMemo } from 'react';
 import { ChevronDown, ChevronRight, ChevronLeft, Save, Download, TrendingUp, AlertCircle, Edit3, Calculator } from 'lucide-react';
 import Papa from 'papaparse';
 import _ from 'lodash';
+import { filterCancellingTransactions } from '../../../utils/transactionFilter';
+console.log('🔴 INDEX.TSX LOADED!');
+
 
 declare global {
   interface Window {
@@ -89,6 +91,7 @@ const MonthlyReport: React.FC = () => {
             try {
               const parsed: Transaction[] = (results as any).data
                 .map((row: any) => ({
+                  koteret: parseInt(row['כותרת']) || 0,
                   sortCode: row['קוד מיון'] ? parseInt(row['קוד מיון']) : null,
                   sortCodeName: row['שם קוד מיון'] || '',
                   accountKey: parseInt(row['מפתח חשבון']) || 0,
@@ -147,8 +150,19 @@ const MonthlyReport: React.FC = () => {
     loadInventoryData();
   }, []);
 
+  // 🔥 סינון דינמי - מזהה תנועות מתאפסות אוטומטית
+  const activeTransactions = useMemo(() => {
+    console.log('🟡 useMemo called, transactions.length:', transactions.length);
+    if (transactions.length === 0) return [];
+    
+    const filtered = filterCancellingTransactions(transactions);
+    console.log(`✅ סינון דינמי: ${transactions.length} → ${filtered.length} (סוננו ${transactions.length - filtered.length})`);
+    
+    return filtered;
+  }, [transactions]);
+
   const monthlyData = useMemo((): ProcessedMonthlyData => {
-    if (!transactions.length) {
+    if (!activeTransactions.length) {
       return { 
         months: [], 
         categories: [], 
@@ -165,7 +179,7 @@ const MonthlyReport: React.FC = () => {
     }
 
     const uniqueMonths = Array.from(new Set(
-      transactions
+      activeTransactions
         .filter(tx => tx.date && tx.date.split('/').length === 3)
         .map(tx => parseInt(tx.date.split('/')[1]))
     )).sort((a, b) => a - b);
@@ -176,7 +190,7 @@ const MonthlyReport: React.FC = () => {
       type: 'income' | 'cogs' | 'operating' | 'financial', 
       filterFn: (tx: Transaction) => boolean
     ) => {
-      const categoryTxs = transactions.filter(filterFn);
+      const categoryTxs = activeTransactions.filter(filterFn);
       const data: MonthlyData = { total: 0 };
       
       const sortCodeName = categoryTxs.length > 0 
@@ -433,15 +447,15 @@ const MonthlyReport: React.FC = () => {
     let txs: Transaction[];
     
     if (category.code === 'income_site') {
-      txs = transactions.filter(tx => 
+      txs = activeTransactions.filter(tx => 
         tx.sortCode === 600 && tx.accountKey >= 40000 && tx.accountKey < 40020
       );
     } else if (category.code === 'income_superpharm') {
-      txs = transactions.filter(tx => 
+      txs = activeTransactions.filter(tx => 
         tx.sortCode === 600 && tx.accountKey >= 40020
       );
     } else {
-      txs = transactions.filter(tx => tx.sortCode === category.code);
+      txs = activeTransactions.filter(tx => tx.sortCode === category.code);
     }
 
     txs = txs.filter(tx => parseInt(tx.date.split('/')[1]) === month);
@@ -460,12 +474,13 @@ const MonthlyReport: React.FC = () => {
     let txs: Transaction[];
     
     if (vendor) {
+      // התנועות כבר מסוננות ב-activeTransactions
       txs = vendor.transactions;
       if (month) {
         txs = txs.filter(tx => parseInt(tx.date.split('/')[1]) === month);
       }
     } else {
-      txs = transactions.filter(tx => {
+      txs = activeTransactions.filter(tx => {
         if (category.code === 'income_site') {
           return tx.sortCode === 600 && tx.accountKey >= 40000 && tx.accountKey < 40020;
         } else if (category.code === 'income_superpharm') {

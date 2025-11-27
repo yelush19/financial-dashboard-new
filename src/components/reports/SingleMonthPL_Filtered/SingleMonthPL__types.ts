@@ -1,6 +1,9 @@
 // types.ts - הגדרות TypeScript למערכת דוח חודש בודד
+// 🔥 מעודכן עם koteret - 27/11/2025
 
 export interface Transaction {
+  koteret: number;  // 🆕 מספר כותרת לסינון
+  title: string;    // כותרת התנועה (לתאימות אחורה)
   sortCode: number | null;
   sortCodeName: string;
   accountKey: number;
@@ -54,17 +57,4 @@ export interface SingleMonthSummary {
   operatingProfit: number;
   financial: number;
   netProfit: number;
-}
-
-// הוספה: Inventory types
-export interface Inventory {
-  [month: number]: number;
-  [key: string]: number; // for year-month format
-}
-
-// הוספה: Adjustments types
-export interface Adjustments2024 {
-  [categoryCode: string]: {
-    [month: number]: number | string;
-  };
 }

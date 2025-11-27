@@ -1,8 +1,9 @@
-// src/components/reports/MonthlyReport/BiurModal.tsx
+// BiurModal.tsx - מודל הצגת תנועות בודדות (רמה 4)
+// 🔥 עם עמודת כותרת - 27/11/2025
 
 import React from 'react';
 import { X } from 'lucide-react';
-import { BiurData } from '../../../types/reportTypes';
+import { BiurData } from './types';
 
 interface BiurModalProps {
   isOpen: boolean;
@@ -22,12 +23,12 @@ export const BiurModal: React.FC<BiurModalProps> = ({
   const totalAmount = data.transactions.reduce((sum, tx) => sum + tx.amount, 0);
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" dir="rtl">
       <div className="bg-white rounded-lg shadow-xl max-w-7xl w-full max-h-[90vh] overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-emerald-50 to-teal-50">
           <div>
-            <h3 className="text-lg font-bold text-gray-800">{data.title}</h3>
+            <h3 className="text-lg font-bold text-gray-800">🔴🔴🔴 {data.title}</h3>
             <p className="text-sm text-gray-600 mt-1">
               {data.transactions.length} תנועות | סה"כ: {formatCurrency(totalAmount)}
             </p>
@@ -46,6 +47,7 @@ export const BiurModal: React.FC<BiurModalProps> = ({
           <table className="w-full text-sm border-collapse">
             <thead className="bg-gray-100 sticky top-0">
               <tr>
+                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-orange-600">כותרת</th>
                 <th className="border border-gray-300 px-3 py-2 text-right font-semibold">תאריך</th>
                 <th className="border border-gray-300 px-3 py-2 text-right font-semibold">חשבון</th>
                 <th className="border border-gray-300 px-3 py-2 text-right font-semibold">שם חשבון</th>
@@ -58,6 +60,9 @@ export const BiurModal: React.FC<BiurModalProps> = ({
             <tbody>
               {data.transactions.map((tx, idx) => (
                 <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                  <td className="border border-gray-300 px-3 py-2 text-sm font-mono text-orange-600 font-bold">
+                    {tx.koteret || tx.title}
+                  </td>
                   <td className="border border-gray-300 px-3 py-2 text-sm whitespace-nowrap">
                     {tx.date}
                   </td>
@@ -84,7 +89,7 @@ export const BiurModal: React.FC<BiurModalProps> = ({
             </tbody>
             <tfoot className="bg-gray-100 sticky bottom-0">
               <tr>
-                <td colSpan={6} className="border border-gray-300 px-3 py-2 text-right font-bold">
+                <td colSpan={7} className="border border-gray-300 px-3 py-2 text-right font-bold">
                   סה"כ:
                 </td>
                 <td className="border border-gray-300 px-3 py-2 text-left font-bold text-black">
