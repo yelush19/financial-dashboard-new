@@ -1,7 +1,12 @@
 // src/utils/transactionFilter.ts
 // 🔥 סינון דינמי של תנועות מתאפסות - עובד עם כל קובץ!
+// ⚡ עדכון: נוסף Cache לייעול (27/11/2025)
 
 import { Transaction } from '../types/reportTypes';
+
+// 🔥 Cache לתוצאות - חישוב פעם אחת בלבד!
+let cachedKoterot: Set<number> | null = null;
+let cachedTransactionsLength: number = 0;
 
 /**
  * מזהה ומסנן תנועות מתאפסות בתוך אותו חשבון+חודש
@@ -27,8 +32,18 @@ export function filterCancellingTransactions(transactions: Transaction[]): Trans
 
 /**
  * מחזיר Set של כותרות מבוטלות (לשימוש בקומפוננטות אחרות)
+ * 🚀 עם Cache - מחשב פעם אחת בלבד!
  */
 export function getCancelledKoterot(transactions: Transaction[]): Set<number> {
+  // ⚡ בדיקת Cache - אם כבר חישבנו לאותו מספר תנועות, החזר את התוצאה
+  if (cachedKoterot && cachedTransactionsLength === transactions.length) {
+    console.log('⚡ שימוש ב-Cache! (לא מחשב מחדש)');
+    return cachedKoterot;
+  }
+
+  console.log('🔄 מחשב כותרות מבוטלות...');
+  const startTime = performance.now();
+
   // שלב 1: קיבוץ לפי חודש + קוד מיון + מפתח חשבון
   const groups = new Map<string, Transaction[]>();
   
@@ -85,7 +100,23 @@ export function getCancelledKoterot(transactions: Transaction[]): Set<number> {
     }
   });
 
+  const endTime = performance.now();
+  console.log(`⚡ חישוב הושלם ב-${(endTime - startTime).toFixed(0)}ms`);
+
+  // 🔥 שמירה ב-Cache
+  cachedKoterot = cancelledKoterot;
+  cachedTransactionsLength = transactions.length;
+
   return cancelledKoterot;
+}
+
+/**
+ * ניקוי ה-Cache (לשימוש כשהנתונים משתנים)
+ */
+export function clearCancelledKoterotCache(): void {
+  cachedKoterot = null;
+  cachedTransactionsLength = 0;
+  console.log('🗑️ Cache נוקה');
 }
 
 /**
