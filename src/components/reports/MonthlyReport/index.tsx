@@ -45,6 +45,8 @@ import { InventoryBackupControls } from './InventoryBackupControls';
 import { InventoryEditorModal } from './InventoryEditorModal';
 import { AdjustmentsEditorModal } from './AdjustmentsEditorModal';
 import { DrillDownModal } from './DrillDownModal';
+import { useMonthlyInventory } from '../../../hooks/useAdjustments';
+import { InventoryInput } from '../../InventoryInput';
 
 const MonthlyReport: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -70,6 +72,26 @@ const MonthlyReport: React.FC = () => {
     monthName: string;
     transactions: Transaction[];
   } | null>(null);
+
+  // שנה נוכחית למלאי
+  const selectedYear = 2025;
+
+  // Hooks למלאי - חשבון 800 - לכל 12 חודשים
+  const inv1 = useMonthlyInventory(800, selectedYear, 1);
+  const inv2 = useMonthlyInventory(800, selectedYear, 2);
+  const inv3 = useMonthlyInventory(800, selectedYear, 3);
+  const inv4 = useMonthlyInventory(800, selectedYear, 4);
+  const inv5 = useMonthlyInventory(800, selectedYear, 5);
+  const inv6 = useMonthlyInventory(800, selectedYear, 6);
+  const inv7 = useMonthlyInventory(800, selectedYear, 7);
+  const inv8 = useMonthlyInventory(800, selectedYear, 8);
+  const inv9 = useMonthlyInventory(800, selectedYear, 9);
+  const inv10 = useMonthlyInventory(800, selectedYear, 10);
+  const inv11 = useMonthlyInventory(800, selectedYear, 11);
+  const inv12 = useMonthlyInventory(800, selectedYear, 12);
+
+  // מערך של כל ה-hooks למלאי
+  const inventoryHooks = [inv1, inv2, inv3, inv4, inv5, inv6, inv7, inv8, inv9, inv10, inv11, inv12];
 
   useEffect(() => {
     const loadTransactions = async () => {
@@ -149,6 +171,34 @@ const MonthlyReport: React.FC = () => {
     loadTransactions();
     loadInventoryData();
   }, []);
+
+  // עדכון מלאי מ-Supabase hooks
+  useEffect(() => {
+    const newOpening: Inventory = {};
+    const newClosing: Inventory = {};
+    
+    inventoryHooks.forEach((hook, index) => {
+      const month = index + 1;
+      newOpening[month] = hook.opening;
+      newClosing[month] = hook.closing;
+    });
+    
+    setOpeningInventory(newOpening);
+    setClosingInventory(newClosing);
+  }, [
+    inv1.opening, inv1.closing,
+    inv2.opening, inv2.closing,
+    inv3.opening, inv3.closing,
+    inv4.opening, inv4.closing,
+    inv5.opening, inv5.closing,
+    inv6.opening, inv6.closing,
+    inv7.opening, inv7.closing,
+    inv8.opening, inv8.closing,
+    inv9.opening, inv9.closing,
+    inv10.opening, inv10.closing,
+    inv11.opening, inv11.closing,
+    inv12.opening, inv12.closing
+  ]);
 
   // 🔥 סינון דינמי - מזהה תנועות מתאפסות אוטומטית
   const activeTransactions = useMemo(() => {
@@ -747,14 +797,34 @@ const MonthlyReport: React.FC = () => {
 
             {!collapsedSections.has('cogs') && (
               <>
-                <InventoryRow
-                  type="opening"
-                  months={monthlyData.months}
-                  inventory={openingInventory}
-                  onChange={(month, value) => setOpeningInventory({...openingInventory, [month]: value})}
-                  formatCurrency={formatCurrency}
-                  indented={true}
-                />
+                {/* מלאי פתיחה - Supabase */}
+                <tr className="bg-green-50">
+                  <td className="border border-gray-300 px-4 py-2 sticky right-0 bg-green-50 font-semibold">
+                    <span className="mr-4">📦</span>
+                    מלאי פתיחה
+                  </td>
+                  {monthlyData.months.map((m) => {
+                    const idx = m - 1;
+                    const hook = inventoryHooks[idx];
+                    return (
+                      <td key={m} className="border border-gray-300 px-2 py-2">
+                        <div className="flex items-center justify-center gap-1">
+                          <input
+                            type="number"
+                            value={hook.opening}
+                            onChange={(e) => hook.updateOpening(parseFloat(e.target.value) || 0)}
+                            className="w-24 px-2 py-1 text-center border border-green-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500"
+                            disabled={hook.saving}
+                          />
+                        </div>
+                      </td>
+                    );
+                  })}
+                  <td className="border border-gray-300 px-3 py-2 text-center font-semibold">
+                    {formatCurrency(Object.values(openingInventory).reduce((a, b) => a + b, 0))}
+                  </td>
+                  <td className="border border-gray-300"></td>
+                </tr>
 
                 {monthlyData.categories.filter(c => c.type === 'cogs').map(cat => (
                   <React.Fragment key={cat.code}>
@@ -820,14 +890,34 @@ const MonthlyReport: React.FC = () => {
                   </React.Fragment>
                 ))}
 
-                <InventoryRow
-                  type="closing"
-                  months={monthlyData.months}
-                  inventory={closingInventory}
-                  onChange={handleClosingInventoryChange}
-                  formatCurrency={formatCurrency}
-                  indented={true}
-                />
+                {/* מלאי סגירה - Supabase */}
+                <tr className="bg-green-50">
+                  <td className="border border-gray-300 px-4 py-2 sticky right-0 bg-green-50 font-semibold">
+                    <span className="mr-4">📦</span>
+                    מלאי סגירה
+                  </td>
+                  {monthlyData.months.map((m) => {
+                    const idx = m - 1;
+                    const hook = inventoryHooks[idx];
+                    return (
+                      <td key={m} className="border border-gray-300 px-2 py-2">
+                        <div className="flex items-center justify-center gap-1">
+                          <input
+                            type="number"
+                            value={hook.closing}
+                            onChange={(e) => hook.updateClosing(parseFloat(e.target.value) || 0)}
+                            className="w-24 px-2 py-1 text-center border border-green-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500"
+                            disabled={hook.saving}
+                          />
+                        </div>
+                      </td>
+                    );
+                  })}
+                  <td className="border border-gray-300 px-3 py-2 text-center font-semibold">
+                    {formatCurrency(Object.values(closingInventory).reduce((a, b) => a + b, 0))}
+                  </td>
+                  <td className="border border-gray-300"></td>
+                </tr>
 
                 <tr className="bg-gray-100 border-2 border-gray-400">
                   <td className="border border-gray-300 px-4 py-3 font-bold text-gray-800 sticky right-0 bg-gray-100">

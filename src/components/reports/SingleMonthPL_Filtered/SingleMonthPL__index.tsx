@@ -18,6 +18,8 @@ import { filterCancellingTransactions, getCancelledKoterot } from '../../../util
 import { StatsCards } from './StatsCards';
 import { CategoryRow } from './CategoryRow';
 import { BiurModal } from './SingleMonthPL__BiurModal';
+import { useMonthlyInventory } from '../../../hooks/useAdjustments';
+import { InventoryInput } from '../../InventoryInput';
 
 console.log('🟢 SingleMonthPL INDEX.TSX LOADED!');
 
@@ -37,6 +39,12 @@ const SingleMonthPLReport: React.FC = () => {
   
   // 🔧 דפולט: ללא מבוטלות (false = מסונן) - בלי localStorage!
   const [showCancelled, setShowCancelled] = useState(false);
+
+  // שנה נוכחית
+  const selectedYear = 2025;
+
+  // Hook למלאי חשבון 800
+  const inventory800 = useMonthlyInventory(800, selectedYear, selectedMonth || 1);
 
   // טעינת נתונים
   useEffect(() => {
@@ -453,6 +461,26 @@ const SingleMonthPLReport: React.FC = () => {
                 totalRevenue={monthData.summary.revenue}
               />
             ))}
+
+            {/* מלאי - חשבון 800 */}
+            console.log('🔵 selectedMonth:', selectedMonth, 'inventory800:', inventory800);
+            {selectedMonth && (
+              <tr>
+                <td colSpan={4} className="border border-gray-300 px-4 py-3">
+                  <InventoryInput
+                    accountKey={800}
+                    accountName="עלות המכר"
+                    year={selectedYear}
+                    month={selectedMonth}
+                    openingValue={inventory800.opening}
+                    closingValue={inventory800.closing}
+                    onSaveOpening={inventory800.updateOpening}
+                    onSaveClosing={inventory800.updateClosing}
+                    saving={inventory800.saving}
+                  />
+                </td>
+              </tr>
+            )}
 
             {/* רווח גולמי */}
             <tr className="bg-emerald-100 font-bold">

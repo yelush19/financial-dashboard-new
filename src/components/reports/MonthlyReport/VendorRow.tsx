@@ -1,5 +1,5 @@
 // src/components/reports/MonthlyReport/VendorRow.tsx
-// 🔥 גרסה עם סינון דינמי - 27/11/2025
+// ðŸ”¥ ×’×¨×¡×” ×¢× ×¡×™× ×•×Ÿ ×“×™× ×ž×™ - 27/11/2025
 import React, { useState } from 'react';
 import { ChevronLeft, ChevronDown, Plus } from 'lucide-react';
 import { VendorData, CategoryData, MonthlyData, Transaction } from '../../../types/reportTypes';
@@ -33,13 +33,13 @@ export const VendorRow: React.FC<VendorRowProps> = ({
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // קיבוץ התנועות לפי ספק (counterAccountNumber)
-  // 🔥 התנועות כבר מסוננות ב-index.tsx, כאן רק מסננים ספקים טכניים (37999)
+  // ×§×™×‘×•×¥ ×”×ª× ×•×¢×•×ª ×œ×¤×™ ×¡×¤×§ (counterAccountNumber)
+  // ðŸ”¥ ×”×ª× ×•×¢×•×ª ×›×‘×¨ ×ž×¡×•× × ×•×ª ×‘-index.tsx, ×›××Ÿ ×¨×§ ×ž×¡× × ×™× ×¡×¤×§×™× ×˜×›× ×™×™× (37999)
   const suppliers: SupplierData[] = React.useMemo(() => {
-    // קיבוץ לפי ספק
+    // ×§×™×‘×•×¥ ×œ×¤×™ ×¡×¤×§
     const grouped = _.groupBy(vendor.transactions, tx => {
       const counterNum = tx.counterAccountNumber || 0;
-      const counterName = tx.counterAccountName || tx.details?.split(' ')[0] || 'לא ידוע';
+      const counterName = tx.counterAccountName || tx.details?.split(' ')[0] || '×œ× ×™×“×•×¢';
       return `${counterNum}|||${counterName}`;
     });
 
@@ -48,7 +48,7 @@ export const VendorRow: React.FC<VendorRowProps> = ({
         const [counterNum, counterName] = key.split('|||');
         const counterAccountNumber = parseInt(counterNum) || 0;
         
-        // 🔥 סינון חשבונות טכניים (37999) מהצגה כספקים
+        // ðŸ”¥ ×¡×™× ×•×Ÿ ×—×©×‘×•× ×•×ª ×˜×›× ×™×™× (37999) ×ž×”×¦×’×” ×›×¡×¤×§×™×
         if (EXCLUDED_COUNTER_ACCOUNTS.has(counterAccountNumber)) {
           return null;
         }
@@ -66,7 +66,7 @@ export const VendorRow: React.FC<VendorRowProps> = ({
         
         return {
           key: counterAccountNumber,
-          name: counterName || 'לא ידוע',
+          name: counterName || '×œ× ×™×“×•×¢',
           data: supplierData,
           transactions: txs as Transaction[]
         };
@@ -98,7 +98,7 @@ export const VendorRow: React.FC<VendorRowProps> = ({
             <button
               onClick={() => onShowBiur()}
               className="p-1 hover:bg-gray-200 rounded text-gray-500 hover:text-green-600"
-              title="הצג תנועות"
+              title="×”×¦×’ ×ª× ×•×¢×•×ª"
             >
               <Plus className="w-4 h-4" />
             </button>
@@ -107,7 +107,7 @@ export const VendorRow: React.FC<VendorRowProps> = ({
             </span>
             {hasSuppliers && (
               <span className="text-xs text-gray-400">
-                ({suppliers.length} ספקים)
+                ({suppliers.length} ×¡×¤×§×™×)
               </span>
             )}
           </div>
@@ -127,7 +127,7 @@ export const VendorRow: React.FC<VendorRowProps> = ({
         <td className="border border-gray-200"></td>
       </tr>
 
-      {/* שורות ספקים - רמה 3 */}
+      {/* ×©×•×¨×•×ª ×¡×¤×§×™× - ×¨×ž×” 3 */}
       {isExpanded && suppliers.map((supplier, idx) => (
         <SupplierRow
           key={`${vendor.name}-${supplier.key}-${idx}`}
