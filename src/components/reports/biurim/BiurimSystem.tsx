@@ -367,6 +367,36 @@ const loadTrialBalance = async () => {
         complete: (results) => {
           const rows = results.data as any[][];
           
+          // 🔍 מציאת אינדקסים דינמית של החודשים בשורה הראשונה
+          const MONTH_NAMES = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'];
+          const monthIndexes: { [month: number]: number } = {};
+          
+          // חיפוש בשורות הראשונות (2-3) למצוא את שמות החודשים
+          for (let rowIdx = 0; rowIdx < Math.min(5, rows.length); rowIdx++) {
+            const headerRow = rows[rowIdx];
+            MONTH_NAMES.forEach((monthName, monthNum) => {
+              const colIndex = headerRow.findIndex((cell: any) => 
+                cell && cell.toString().trim() === monthName
+              );
+              if (colIndex !== -1) {
+                monthIndexes[monthNum + 1] = colIndex;
+              }
+            });
+            // אם מצאנו את כל החודשים, די
+            if (Object.keys(monthIndexes).length === 12) {
+              console.log('✅ מצאתי אינדקסים של חודשים:', monthIndexes);
+              break;
+            }
+          }
+          
+          // אם לא מצאנו דינמית, השתמש בברירת מחדל (עמודות G-R = 6-17)
+          if (Object.keys(monthIndexes).length === 0) {
+            console.warn('⚠️ לא מצאתי שמות חודשים, משתמש באינדקסים קבועים');
+            for (let m = 1; m <= 12; m++) {
+              monthIndexes[m] = 5 + m; // G=6, H=7, etc.
+            }
+          }
+          
           const validRows: TrialBalanceRecord[] = [];
           let currentSortCode = 0;
           let currentSortCodeName = '';
@@ -404,25 +434,19 @@ const loadTrialBalance = async () => {
               return isNaN(num) ? 0 : num;
             };
 
+            // 🎯 שימוש באינדקסים הדינמיים
+            const months: { [month: number]: number } = {};
+            for (let m = 1; m <= 12; m++) {
+              const colIdx = monthIndexes[m];
+              months[m] = colIdx !== undefined ? parseAmount(row[colIdx]) : 0;
+            }
+
             validRows.push({
               accountKey: accountKey,
               accountName: accountName,
               sortCode: currentSortCode,
               sortCodeName: currentSortCodeName,
-              months: {
-                1: parseAmount(row[7]),
-                2: parseAmount(row[8]),
-                3: parseAmount(row[9]),
-                4: parseAmount(row[10]),
-                5: parseAmount(row[11]),
-                6: parseAmount(row[12]),
-                7: parseAmount(row[13]),
-                8: parseAmount(row[14]),
-                9: parseAmount(row[15]),
-                10: parseAmount(row[16]),
-                11: parseAmount(row[17]),
-                12: parseAmount(row[18])
-              }
+              months: months
             });
           });
 
@@ -434,6 +458,8 @@ const loadTrialBalance = async () => {
       console.error('שגיאה בטעינת מאזן בוחן:', error);
     }
   };
+
+  
   
   // ==========================================
   // סינון תנועות מבטלות (קיים)
