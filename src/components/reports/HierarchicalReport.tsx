@@ -3,6 +3,7 @@ import { Plus, Minus, TrendingUp, Package2, Building2, Landmark, Save, Edit3, Ba
 import Papa from 'papaparse';
 import _ from 'lodash';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { useMonthlyInventory } from '../../hooks/useAdjustments';
 
 interface Transaction {
   sortCode: number | null;
@@ -59,6 +60,25 @@ const HierarchicalReport: React.FC = () => {
   const [expandedSubCategories, setExpandedSubCategories] = useState<Set<string>>(new Set());
   const [expandedAccounts, setExpandedAccounts] = useState<Set<string>>(new Set());
   
+
+  // שנה נוכחית למלאי
+  const selectedYear = 2025;
+
+  // Hooks למלאי מ-Supabase - לכל 12 חודשים
+  const inv1 = useMonthlyInventory(800, selectedYear, 1);
+  const inv2 = useMonthlyInventory(800, selectedYear, 2);
+  const inv3 = useMonthlyInventory(800, selectedYear, 3);
+  const inv4 = useMonthlyInventory(800, selectedYear, 4);
+  const inv5 = useMonthlyInventory(800, selectedYear, 5);
+  const inv6 = useMonthlyInventory(800, selectedYear, 6);
+  const inv7 = useMonthlyInventory(800, selectedYear, 7);
+  const inv8 = useMonthlyInventory(800, selectedYear, 8);
+  const inv9 = useMonthlyInventory(800, selectedYear, 9);
+  const inv10 = useMonthlyInventory(800, selectedYear, 10);
+  const inv11 = useMonthlyInventory(800, selectedYear, 11);
+  const inv12 = useMonthlyInventory(800, selectedYear, 12);
+
+  const inventoryHooks = [inv1, inv2, inv3, inv4, inv5, inv6, inv7, inv8, inv9, inv10, inv11, inv12];
   // מלאי
   const [openingInventory, setOpeningInventory] = useState<Record<number, number>>(() => {
     try {
@@ -105,6 +125,35 @@ const HierarchicalReport: React.FC = () => {
       alert('שגיאה בשמירת הנתונים');
     }
   };
+
+
+  // סנכרון מלאי מ-Supabase hooks ל-state
+  useEffect(() => {
+    const newOpening: Record<number, number> = {};
+    const newClosing: Record<number, number> = {};
+    
+    inventoryHooks.forEach((hook, index) => {
+      const month = index + 1;
+      newOpening[month] = hook.opening;
+      newClosing[month] = hook.closing;
+    });
+    
+    setOpeningInventory(newOpening);
+    setClosingInventory(newClosing);
+  }, [
+    inv1.opening, inv1.closing,
+    inv2.opening, inv2.closing,
+    inv3.opening, inv3.closing,
+    inv4.opening, inv4.closing,
+    inv5.opening, inv5.closing,
+    inv6.opening, inv6.closing,
+    inv7.opening, inv7.closing,
+    inv8.opening, inv8.closing,
+    inv9.opening, inv9.closing,
+    inv10.opening, inv10.closing,
+    inv11.opening, inv11.closing,
+    inv12.opening, inv12.closing
+  ]);
 
   useEffect(() => {
     const loadTransactions = async () => {
@@ -288,12 +337,22 @@ const HierarchicalReport: React.FC = () => {
     const cogs800 = filteredTransactions.filter(tx => tx.sortCode === 800);
     const purchases = Math.abs(_.sumBy(cogs800, 'amount'));
     
-    // מלאי פתיחה = ינואר (חודש 1)
-    const totalOpeningInv = openingInventory[1] || 0;
+    // מלאי פתיחה = ינואר (חודש 1) - ישירות מ-Supabase
+    const totalOpeningInv = inv1.opening || 0;
     
-    // מלאי סגירה = החודש האחרון
-    const closingMonths = Object.keys(closingInventory).map(Number).filter(m => m > 0).sort((a, b) => b - a);
-    const totalClosingInv = closingMonths.length > 0 ? closingInventory[closingMonths[0]] || 0 : 0;
+    // מלאי סגירה = החודש האחרון עם נתונים - חיפוש דינמי
+    const lastMonthWithClosing = inventoryHooks
+      .map((hook, idx) => ({ month: idx + 1, closing: hook.closing }))
+      .reverse()  // מתחילים מדצמבר ונע אחורה
+      .find(item => item.closing > 0);
+    
+    const totalClosingInv = lastMonthWithClosing ? lastMonthWithClosing.closing : 0;
+    
+    console.log('🔵 inv1:', inv1);
+    console.log('🔵 inv11:', inv11);
+    console.log('🔵 totalOpeningInv:', totalOpeningInv);
+    console.log('🔵 totalClosingInv:', totalClosingInv);
+    console.log('🔵 lastMonthWithClosing:', lastMonthWithClosing);
     
     const cogsAdjustment = getTotalAdjustment('800');
     const actualCOGS = purchases + totalOpeningInv - totalClosingInv + cogsAdjustment;
@@ -385,7 +444,7 @@ const HierarchicalReport: React.FC = () => {
       },
       dateRange: formattedDateRange
     };
-  }, [transactions, openingInventory, closingInventory, adjustments2024Monthly]);
+  }, [transactions, adjustments2024Monthly, inv1, inv2, inv3, inv4, inv5, inv6, inv7, inv8, inv9, inv10, inv11, inv12]);
 
   const toggleCategory = (code: string) => {
     setExpandedCategories(prev => {
@@ -640,33 +699,28 @@ const HierarchicalReport: React.FC = () => {
               {expandedCategories.has(category.code.toString()) && (
                 <div className="bg-gray-50 p-4">
                   {/* הצגת מלאי אוטומטית מהדוח החודשי */}
-                  <div className="bg-blue-50 rounded-md border border-blue-200 p-3 mb-3">
+                  <div className="bg-green-50 rounded-md border border-green-200 p-3 mb-3">
                     <div className="flex items-center gap-2 mb-2">
-                      <Package2 className="w-4 h-4 text-blue-600" />
-                      <span className="text-sm font-semibold text-blue-800">מלאי (אוטומטי מהדוח החודשי)</span>
+                      <Package2 className="w-4 h-4 text-green-600" />
+                      <span className="text-sm font-semibold text-green-800">מלאי (מתעדכן אוטומטית מ-Supabase)</span>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-white rounded-md p-2 border border-blue-200">
+                      <div className="bg-white rounded-md p-2 border border-green-200">
                         <div className="text-xs text-gray-600 mb-1">מלאי פתיחה (ינואר)</div>
-                        <div className="text-lg font-bold text-blue-700">
-                          {formatCurrency(openingInventory[1] || 0)}
+                        <div className="text-lg font-bold text-green-700">
+                          {formatCurrency(hierarchicalData.totals.revenue > 0 ? totalOpeningInv : 0)}
                         </div>
                       </div>
-                      <div className="bg-white rounded-md p-2 border border-blue-200">
+                      <div className="bg-white rounded-md p-2 border border-green-200">
                         <div className="text-xs text-gray-600 mb-1">מלאי סגירה (חודש אחרון)</div>
-                        <div className="text-lg font-bold text-blue-700">
-                          {formatCurrency(
-                            (() => {
-                              const months = Object.keys(closingInventory).map(Number).filter(m => m > 0).sort((a, b) => b - a);
-                              return months.length > 0 ? closingInventory[months[0]] || 0 : 0;
-                            })()
-                          )}
+                        <div className="text-lg font-bold text-green-700">
+                          {formatCurrency(hierarchicalData.totals.revenue > 0 ? totalClosingInv : 0)}
                         </div>
                       </div>
                     </div>
                     <div className="text-xs text-gray-500 mt-2 flex items-center gap-1">
                       <span>💡</span>
-                      <span>לעדכון המלאי - עבור לדוח החודשי</span>
+                      <span>המלאי מתעדכן אוטומטית מדוח Pלעדכון המלאי - עבור לדוח החודשיL מצטבר חודשי</span>
                     </div>
                   </div>
 
@@ -944,7 +998,7 @@ const HierarchicalReport: React.FC = () => {
         <div className="space-y-3 overflow-y-auto" style={{ maxHeight: '55vh' }}>
           <div className="bg-white border border-gray-200 rounded-lg p-2.5 shadow-sm">
             <div className="flex items-center gap-1.5 mb-1">
-              <BarChart3 className="w-3.5 h-3.5 text-blue-600" />
+              <BarChart3 className="w-3.5 h-3.5 text-green-600" />
               <h3 className="font-bold text-gray-800 text-xs">הכנסות vs הוצאות</h3>
             </div>
             <ResponsiveContainer width="100%" height={140}>
