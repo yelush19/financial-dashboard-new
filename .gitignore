@@ -28,7 +28,10 @@ dist-ssr
 *.old
 
 # Data files - never commit sensitive data
+# Note: Main CSV files in /public are needed for the app
 *.csv
+!public/TransactionMonthlyModi.csv
+!public/BalanceMonthlyModi.csv
 *.xlsx
 *.xls
 /data/

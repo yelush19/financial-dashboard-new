@@ -1,12 +1,9 @@
 // src/hooks/useSecureCSV.ts
-// Hook לטעינת CSV מ-Context, localStorage, או Supabase
+// Hook לטעינת CSV מ-public folder
 
 import { useState, useEffect } from 'react';
-import { useDataContext } from '../contexts/DataContext';
-import { loadCSVFile } from '../utils/csvStorage';
 
 export const useSecureCSV = (fileName: 'TransactionMonthlyModi.csv' | 'BalanceMonthlyModi.csv') => {
-  const { transactionsData, balanceData } = useDataContext();
   const [csvData, setCsvData] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -17,39 +14,22 @@ export const useSecureCSV = (fileName: 'TransactionMonthlyModi.csv' | 'BalanceMo
         setLoading(true);
         setError(null);
 
-        // אם יש נתונים ב-Context, השתמש בהם
-        if (fileName === 'TransactionMonthlyModi.csv' && transactionsData) {
-          setCsvData(transactionsData);
-          setLoading(false);
-          return;
+        const response = await fetch(`/${fileName}`);
+        if (!response.ok) {
+          throw new Error(`Failed to load ${fileName}`);
         }
 
-        if (fileName === 'BalanceMonthlyModi.csv' && balanceData) {
-          setCsvData(balanceData);
-          setLoading(false);
-          return;
-        }
-
-        // אם לא, נסה לטעון מ-localStorage/Supabase
-        const fileType = fileName === 'TransactionMonthlyModi.csv' ? 'transactions' : 'balance';
-        const storedData = await loadCSVFile(fileType);
-
-        if (storedData) {
-          setCsvData(storedData);
-          setLoading(false);
-          return;
-        }
-
-        // אם אין נתונים בכלל, הצג הודעה
-        throw new Error(`קובץ ${fileName} לא נמצא. אנא העלה את הקובץ דרך ממשק ההעלאה.`);
+        const text = await response.text();
+        setCsvData(text);
+        setLoading(false);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'שגיאה בטעינת הקובץ');
+        setError(err instanceof Error ? err.message : 'Error loading file');
         setLoading(false);
       }
     };
 
     loadData();
-  }, [fileName, transactionsData, balanceData]);
+  }, [fileName]);
 
   return { csvData, loading, error };
 };

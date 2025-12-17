@@ -4,7 +4,6 @@
 import React, { useState, useRef } from 'react';
 import { Upload, Loader2, CheckCircle, AlertCircle, FileText } from 'lucide-react';
 import { useDataContext } from '../contexts/DataContext';
-import { saveCSVFile } from '../utils/csvStorage';
 
 type FileType = 'transactions' | 'balance';
 
@@ -38,15 +37,12 @@ export const DataFileUploader: React.FC = () => {
       // קריאת הקובץ
       const text = await file.text();
 
-      // שמירה ב-Context ו-localStorage
+      // שמירה ב-Context
       if (fileType === 'transactions') {
         setTransactionsData(text);
       } else {
         setBalanceData(text);
       }
-
-      // שמירה ב-localStorage דרך הפונקציה המרכזית
-      await saveCSVFile(fileType, text);
 
       setFileStatus((prev) => ({ ...prev, [fileType]: 'success' }));
     } catch (error) {
