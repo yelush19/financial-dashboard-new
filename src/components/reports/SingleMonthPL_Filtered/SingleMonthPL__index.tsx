@@ -193,15 +193,22 @@ const SingleMonthPLReport: React.FC = () => {
       const accountGroups = _.groupBy(categoryTxs, tx => tx.accountKey);
       
       const accounts: AccountData[] = Object.entries(accountGroups).map(([accKey, accTxs]) => {
-        // קיבוץ לפי ספק
-        const vendorGroups = _.groupBy(accTxs, tx => tx.counterAccountNumber);
-        
-        const vendors: VendorData[] = Object.entries(vendorGroups).map(([vendorKey, vendorTxs]) => ({
-          counterAccountNumber: parseInt(vendorKey) || 0,
-          counterAccountName: vendorTxs[0]?.counterAccountName || '',
-          amount: _.sumBy(vendorTxs, 'amount'),
-          transactions: vendorTxs
-        })).sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
+        // קיבוץ לפי ספק (משתמש בעמודות ממופות אם קיימות)
+        const vendorGroups = _.groupBy(accTxs, tx => {
+          const vKey = (tx as any).vendorKey || tx.counterAccountNumber || 0;
+          const vName = (tx as any).vendorName || tx.counterAccountName || '';
+          return `${vKey}|||${vName}`;
+        });
+
+        const vendors: VendorData[] = Object.entries(vendorGroups).map(([key, vendorTxs]) => {
+          const [vKey, vName] = key.split('|||');
+          return {
+            counterAccountNumber: parseInt(vKey) || 0,
+            counterAccountName: vName || vendorTxs[0]?.counterAccountName || '',
+            amount: _.sumBy(vendorTxs, 'amount'),
+            transactions: vendorTxs
+          };
+        }).sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
 
         return {
           accountKey: parseInt(accKey),
