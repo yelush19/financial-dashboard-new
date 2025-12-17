@@ -130,7 +130,7 @@ function App() {
                 <div>
                   <h3 className="text-2xl font-bold text-white mb-1 drop-shadow-lg">ליתאי</h3>
                   <p className="text-lg text-white/90 font-medium">ניהול שירותים בע"מ</p>
-                  <p className="text-sm text-white/80 italic mt-1">חדשנות במאזן | Innovation in Balance</p>
+                  <p className="text-sm text-white/80 italic mt-1">חדשנות מאוזנת | Innovation in Balance</p>
                 </div>
               </div>
 
