@@ -1,12 +1,11 @@
 import { useState } from "react";
-import { FileText, BarChart3, Database, TrendingUp, Phone, Mail, MapPin, ExternalLink, Shield, Zap, Award } from "lucide-react";
+import { FileText, BarChart3, TrendingUp, Phone, Mail, MapPin, ExternalLink, Shield, Zap, Award } from "lucide-react";
 import HierarchicalReport from "./components/reports/HierarchicalReport";
 import MonthlyReport from "./components/reports/MonthlyReport/index";
 import BiurimSystem from "./components/reports/biurim/BiurimSystem";
 import { ProtectedRoute } from './components/ProtectedRoute';
 import SingleMonthPLReport from './components/reports/SingleMonthPL_Filtered/SingleMonthPL__index';
 import { DataProvider } from './contexts/DataContext';
-import { DataFileUploader } from './components/DataFileUploader';
 
 // פלטת צבעים רשמית של ליתאי
 const LITAY = {
@@ -26,7 +25,6 @@ const LITAY = {
 };
 
 const tabs = [
-  { id: 'upload', label: "העלאת נתונים", icon: Database },
   { id: 'hierarchical', label: "דוח רווח והפסד", icon: FileText },
   { id: 'pivot', label: "P&L מצטבר חודשי", icon: BarChart3 },
   { id: 'quarterly', label: "P&L חודש בודד", icon: TrendingUp },
@@ -34,7 +32,7 @@ const tabs = [
 ];
 
 function App() {
-  const [selectedTab, setSelectedTab] = useState("upload");
+  const [selectedTab, setSelectedTab] = useState("hierarchical");
 
   return (
     <DataProvider>
@@ -96,7 +94,6 @@ function App() {
         <div className="w-full">
           <div className="bg-white rounded-xl shadow-lg border border-gray-200" style={{ borderRight: `4px solid ${LITAY.primary}` }}>
             <div className="p-6">
-              {selectedTab === 'upload' && <DataFileUploader />}
               {selectedTab === 'hierarchical' && <HierarchicalReport />}
               {selectedTab === 'pivot' && <MonthlyReport />}
               {selectedTab === 'quarterly' && <SingleMonthPLReport />}
