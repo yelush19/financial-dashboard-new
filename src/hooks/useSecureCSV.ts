@@ -22,17 +22,22 @@ export const useSecureCSV = (fileName: 'TransactionMonthlyModi.csv' | 'BalanceMo
           throw new Error('User not authenticated');
         }
 
-        // טעינת הקובץ מ-Supabase Storage
-        const { data, error: downloadError } = await supabase.storage
+        // קבלת URL ציבורי לקובץ
+        const { data: urlData } = supabase.storage
           .from('csv-files')
-          .download(fileName);
+          .getPublicUrl(fileName);
 
-        if (downloadError) {
-          throw new Error(`Failed to load ${fileName}: ${downloadError.message}`);
+        if (!urlData?.publicUrl) {
+          throw new Error(`Failed to get public URL for ${fileName}`);
         }
 
-        // המרת Blob לטקסט
-        const text = await data.text();
+        // הורדת הקובץ דרך fetch
+        const response = await fetch(urlData.publicUrl);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch ${fileName}: ${response.statusText}`);
+        }
+
+        const text = await response.text();
         setCsvData(text);
         setLoading(false);
       } catch (err) {
