@@ -147,8 +147,32 @@ function App() {
               </div>
             </div>
 
-            {/* Column 2 - Contact (5 cols) */}
-            <div className="col-span-4">
+            {/* Column 2 - Quick Links (3 cols) */}
+            <div className="col-span-2">
+              <h4 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+                <div className="w-1.5 h-6 bg-white rounded-full" />
+                קישורים מהירים
+              </h4>
+              <ul className="space-y-3">
+                {[
+                  "דוחות מתקדמים",
+                  "ניתוח נתונים",
+                  "התעלות מערכות",
+                  "ייעוץ פיננסי",
+                  "אסטרטגיה עסקית"
+                ].map((link, i) => (
+                  <li key={i}>
+                    <button className="text-white/90 hover:text-white text-sm transition-all flex items-center gap-2 group">
+                      <ExternalLink size={14} className="group-hover:translate-x-1 transition-transform" />
+                      <span className="group-hover:underline">{link}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Column 3 - Contact (3 cols) */}
+            <div className="col-span-3">
               <h4 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
                 <div className="w-1.5 h-6 bg-white rounded-full" />
                 יצירת קשר
@@ -180,8 +204,8 @@ function App() {
               </div>
             </div>
 
-            {/* Column 3 - Newsletter (4 cols) */}
-            <div className="col-span-4">
+            {/* Column 4 - Newsletter (3 cols) */}
+            <div className="col-span-3">
               <h4 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
                 <div className="w-1.5 h-6 bg-white rounded-full" />
                 עדכונים
