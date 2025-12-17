@@ -6,6 +6,7 @@ import ComparisonTab from './ComparisonTab';
 import AnalyticsTab from './AnalyticsTab';
 import AlertsSystem from './AlertsSystem';
 import DataValidationModal from './DataValidationModal';
+import { useSecureCSV } from '../../../hooks/useSecureCSV';
 
 // ==========================================
 // קבועים
@@ -119,13 +120,16 @@ interface ComparisonResult {
 // קומפוננטה ראשית
 // ==========================================
 const BiurimSystem: React.FC = () => {
+  const { csvData: transactionsCsv, loading: transactionsLoading } = useSecureCSV('TransactionMonthlyModi.csv');
+  const { csvData: balanceCsv, loading: balanceLoading } = useSecureCSV('BalanceMonthlyModi.csv');
+
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [trialBalance, setTrialBalance] = useState<TrialBalanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'biurim' | 'balances' | 'comparison' | 'analytics' | 'alerts'>('biurim');
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
   const [showValidationModal, setShowValidationModal] = useState(false);
-  
+
   // 🆕 State לבדיקת עקביות
   const [comparisonResult, setComparisonResult] = useState<ComparisonResult | null>(null);
   const [showConsistencyDetails, setShowConsistencyDetails] = useState(false);
@@ -149,21 +153,22 @@ const BiurimSystem: React.FC = () => {
   // טעינת נתונים
   // ==========================================
   useEffect(() => {
+    if (!transactionsCsv || !balanceCsv) return;
+
     const loadData = async () => {
       await loadTransactions();
       await loadTrialBalance();
     };
     loadData();
-  }, []);
+  }, [transactionsCsv, balanceCsv]);
 
   const loadTransactions = async () => {
-    try {
-      const response = await fetch('/TransactionMonthlyModi.csv');
-      const text = await response.text();
+    if (!transactionsCsv) return;
 
+    try {
       console.log('📦 מתחיל לטעון קובץ TransactionMonthlyModi.csv...');
 
-      Papa.parse(text, {
+      Papa.parse(transactionsCsv, {
         header: true,
         skipEmptyLines: true,
         complete: (results) => {
@@ -355,13 +360,12 @@ const BiurimSystem: React.FC = () => {
   };
 
 const loadTrialBalance = async () => {
-    try {
-      const response = await fetch('/BalanceMonthlyModi.csv');
-      const text = await response.text();
+    if (!balanceCsv) return;
 
+    try {
       console.log('📦 מתחיל לטעון מאזן בוחן...');
 
-      Papa.parse(text, {
+      Papa.parse(balanceCsv, {
         header: false,
         skipEmptyLines: true,
         complete: (results) => {

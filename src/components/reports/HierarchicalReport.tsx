@@ -5,6 +5,7 @@ import _ from 'lodash';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useMonthlyInventory } from '../../hooks/useAdjustments';
 import { useAllCategoryAdjustments } from '../../hooks/useCategoryAdjustments';
+import { useSecureCSV } from '../../hooks/useSecureCSV';
 
 interface Transaction {
   sortCode: number | null;
@@ -55,12 +56,13 @@ const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'
 const MONTH_NAMES = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'];
 
 const HierarchicalReport: React.FC = () => {
+  const { csvData, loading: csvLoading, error: csvError } = useSecureCSV('TransactionMonthlyModi.csv');
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [expandedSubCategories, setExpandedSubCategories] = useState<Set<string>>(new Set());
   const [expandedAccounts, setExpandedAccounts] = useState<Set<string>>(new Set());
-  
+
 
   // שנה נוכחית למלאי
   const selectedYear = 2025;
@@ -161,12 +163,11 @@ const HierarchicalReport: React.FC = () => {
   ]);
 
   useEffect(() => {
+    if (!csvData) return;
+
     const loadTransactions = async () => {
       try {
-        const response = await fetch('/TransactionMonthlyModi.csv');
-        const text = await response.text();
-        
-        Papa.parse(text, {
+        Papa.parse(csvData, {
           header: true,
           skipEmptyLines: true,
           complete: (results: Papa.ParseResult<any>) => {
@@ -181,7 +182,7 @@ const HierarchicalReport: React.FC = () => {
               counterAccountName: row['שם חשבון נגדי'] || '',
             }));
             const filtered = parsed.filter(tx => tx.accountKey !== 0);
-            
+
             setTransactions(filtered);
             setLoading(false);
           },
@@ -193,7 +194,7 @@ const HierarchicalReport: React.FC = () => {
     };
 
     loadTransactions();
-  }, []);
+  }, [csvData]);
 
   // ✅ רענון נתונים מהדוח החודשי
   const refreshData = () => {

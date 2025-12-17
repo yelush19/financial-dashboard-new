@@ -21,6 +21,7 @@ import { BiurModal } from './SingleMonthPL__BiurModal';
 import { useMonthlyInventory } from '../../../hooks/useAdjustments';
 import { useAllCategoryAdjustments } from '../../../hooks/useCategoryAdjustments';
 import { InventoryInput } from '../../InventoryInput';
+import { useSecureCSV } from '../../../hooks/useSecureCSV';
 
 console.log('🟢 SingleMonthPL INDEX.TSX LOADED!');
 
@@ -30,6 +31,7 @@ const MONTH_NAMES = [
 ];
 
 const SingleMonthPLReport: React.FC = () => {
+  const { csvData, loading: csvLoading, error: csvError } = useSecureCSV('TransactionMonthlyModi.csv');
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +39,7 @@ const SingleMonthPLReport: React.FC = () => {
   const [showBiurModal, setShowBiurModal] = useState(false);
   const [biurData, setBiurData] = useState<BiurData>({ title: '', transactions: [] });
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
-  
+
   // 🔧 דפולט: ללא מבוטלות (false = מסונן) - בלי localStorage!
   const [showCancelled, setShowCancelled] = useState(false);
 
@@ -52,19 +54,14 @@ const SingleMonthPLReport: React.FC = () => {
 
   // טעינת נתונים
   useEffect(() => {
+    if (!csvData) return;
+
     const loadTransactions = async () => {
       try {
         setLoading(true);
         setError(null);
-        
-        const response = await fetch('/TransactionMonthlyModi.csv');
-        if (!response.ok) {
-          throw new Error(`שגיאה בטעינת הקובץ: ${response.status}`);
-        }
 
-        const text = await response.text();
-        
-        Papa.parse(text, {
+        Papa.parse(csvData, {
           header: true,
           skipEmptyLines: true,
           complete: (results) => {
@@ -107,7 +104,7 @@ const SingleMonthPLReport: React.FC = () => {
     };
 
     loadTransactions();
-  }, []);
+  }, [csvData]);
 
   // 🔥 סינון דינמי - מחשב פעם אחת את כל הכותרות המבוטלות
   const cancelledKoterot = useMemo(() => {
