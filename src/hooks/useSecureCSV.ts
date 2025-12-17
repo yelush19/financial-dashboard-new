@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useDataContext } from '../contexts/DataContext';
-import { loadCSVFile } from '../lib/supabaseClient';
+import { loadCSVFile } from '../utils/csvStorage';
 
 export const useSecureCSV = (fileName: 'TransactionMonthlyModi.csv' | 'BalanceMonthlyModi.csv') => {
   const { transactionsData, balanceData } = useDataContext();

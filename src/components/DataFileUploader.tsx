@@ -4,7 +4,7 @@
 import React, { useState, useRef } from 'react';
 import { Upload, Loader2, CheckCircle, AlertCircle, FileText } from 'lucide-react';
 import { useDataContext } from '../contexts/DataContext';
-import { saveCSVFile } from '../lib/supabaseClient';
+import { saveCSVFile } from '../utils/csvStorage';
 
 type FileType = 'transactions' | 'balance';
 
