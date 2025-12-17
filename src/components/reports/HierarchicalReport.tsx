@@ -53,6 +53,9 @@ interface Transaction {
   details: string;
   date: string;
   counterAccountName: string;
+  counterAccountNumber: number;
+  vendorKey: number;
+  vendorName: string;
 }
 
 interface AccountData {
@@ -220,6 +223,10 @@ const HierarchicalReport: React.FC = () => {
               details: row['פרטים'] || '',
               date: row['ת.אסמכ'] || '',
               counterAccountName: row['שם חשבון נגדי'] || '',
+              counterAccountNumber: parseInt(row['ח-ן נגדי']) || 0,
+              // עמודות ספק ממופות
+              vendorKey: parseInt(row['ספק_מפתח']) || parseInt(row['ח-ן נגדי']) || 0,
+              vendorName: row['ספק_שם'] || row['שם חשבון נגדי'] || '',
             }));
             const filtered = parsed.filter(tx => tx.accountKey !== 0);
 

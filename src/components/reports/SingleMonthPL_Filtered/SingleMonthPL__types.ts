@@ -13,6 +13,9 @@ export interface Transaction {
   date: string;
   counterAccountName: string;
   counterAccountNumber: number;
+  // עמודות ספק ממופות
+  vendorKey: number;
+  vendorName: string;
 }
 
 export interface MonthlyData {
@@ -23,6 +26,8 @@ export interface MonthlyData {
 export interface VendorData {
   counterAccountNumber: number;
   counterAccountName: string;
+  vendorKey: number;       // ספק ממופה
+  vendorName: string;      // שם ספק ממופה
   amount: number;
   transactions: Transaction[];
 }

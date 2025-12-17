@@ -9,7 +9,12 @@
       "Bash(git push:*)",
       "Bash(git stash:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git pull:*)",
+      "Bash(python:*)",
+      "Bash(cat:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx vite build)"
     ],
     "deny": [],
     "ask": []

@@ -79,6 +79,9 @@ const SingleMonthPLReport: React.FC = () => {
                   date: row['ת.אסמכ'] || '',
                   counterAccountName: row['שם חשבון נגדי'] || '',
                   counterAccountNumber: parseInt(row['ח-ן נגדי']) || 0,
+                  // עמודות ספק ממופות
+                  vendorKey: parseInt(row['ספק_מפתח']) || parseInt(row['ח-ן נגדי']) || 0,
+                  vendorName: row['ספק_שם'] || row['שם חשבון נגדי'] || '',
                 }))
                 .filter((tx: Transaction) => tx.accountKey !== 0 && tx.date);
               
@@ -202,9 +205,12 @@ const SingleMonthPLReport: React.FC = () => {
 
         const vendors: VendorData[] = Object.entries(vendorGroups).map(([key, vendorTxs]) => {
           const [vKey, vName] = key.split('|||');
+          const firstTx = vendorTxs[0] as Transaction;
           return {
-            counterAccountNumber: parseInt(vKey) || 0,
-            counterAccountName: vName || vendorTxs[0]?.counterAccountName || '',
+            counterAccountNumber: firstTx?.counterAccountNumber || 0,
+            counterAccountName: firstTx?.counterAccountName || '',
+            vendorKey: parseInt(vKey) || 0,
+            vendorName: vName || '',
             amount: _.sumBy(vendorTxs, 'amount'),
             transactions: vendorTxs
           };

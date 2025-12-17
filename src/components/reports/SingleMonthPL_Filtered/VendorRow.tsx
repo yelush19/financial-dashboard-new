@@ -32,10 +32,10 @@ export const VendorRow: React.FC<VendorRowProps> = ({
             חשבון ספק
           </span>
           <span className="text-gray-700 text-sm">
-            {vendor.counterAccountName}
-            {vendor.counterAccountNumber !== 0 && (
+            {vendor.vendorName || vendor.counterAccountName}
+            {vendor.vendorKey !== 0 && (
               <span className="text-gray-500 text-xs mr-1">
-                ({vendor.counterAccountNumber})
+                ({vendor.vendorKey})
               </span>
             )}
           </span>
