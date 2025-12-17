@@ -11,6 +11,9 @@ export interface Transaction {
   date: string;
   counterAccountName: string;
   counterAccountNumber: number;
+  // עמודות ספק ממופות (מהקובץ החדש)
+  vendorKey: number;      // ספק_מפתח
+  vendorName: string;     // ספק_שם
 }
 
 export interface MonthlyData {

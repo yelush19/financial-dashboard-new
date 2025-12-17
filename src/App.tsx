@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FileText, BarChart3, TrendingUp, Phone, Mail, MapPin, ExternalLink, Shield, Zap, Award } from "lucide-react";
+import { FileText, BarChart3, TrendingUp, Mail, MapPin, ExternalLink, Shield, Zap, Award, Linkedin } from "lucide-react";
 import HierarchicalReport from "./components/reports/HierarchicalReport";
 import MonthlyReport from "./components/reports/MonthlyReport/index";
 import BiurimSystem from "./components/reports/biurim/BiurimSystem";
@@ -147,54 +147,41 @@ function App() {
               </div>
             </div>
 
-            {/* Column 2 - Quick Links (3 cols) */}
-            <div className="col-span-3">
-              <h4 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-                <div className="w-1.5 h-6 bg-white rounded-full" />
-                יכולות המערכת
-              </h4>
-              <ul className="space-y-3">
-                {[
-                  "דוחות רווח והפסד מתקדמים",
-                  "ניתוח מגמות ותחזיות",
-                  "השוואה בין תקופות",
-                  "ייצוא אוטומטי לאקסל",
-                  "התראות ותובנות חכמות"
-                ].map((link, i) => (
-                  <li key={i}>
-                    <button className="text-white/90 hover:text-white text-sm transition-all flex items-center gap-2 group">
-                      <ExternalLink size={14} className="group-hover:translate-x-1 transition-transform" />
-                      <span className="group-hover:underline">{link}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Column 3 - Contact (3 cols) */}
-            <div className="col-span-3">
+            {/* Column 2 - Contact (5 cols) */}
+            <div className="col-span-4">
               <h4 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
                 <div className="w-1.5 h-6 bg-white rounded-full" />
                 יצירת קשר
               </h4>
               <div className="space-y-4">
-                {[
-                  { icon: MapPin, text: "ישראל" },
-                  { icon: Phone, text: "שירותי מזכירות" },
-                  { icon: Mail, text: "info@litay.co.il" }
-                ].map((item, i) => (
-                  <div key={i} className="flex items-center gap-3 text-white/90 hover:text-white transition-colors group cursor-pointer">
-                    <div className="w-10 h-10 rounded-lg bg-white/20 backdrop-blur-md flex items-center justify-center group-hover:bg-white/30 transition-all border border-white/30">
-                      <item.icon size={18} />
-                    </div>
-                    <span className="text-sm font-medium">{item.text}</span>
+                <div className="flex items-center gap-3 text-white/90 hover:text-white transition-colors group cursor-pointer">
+                  <div className="w-10 h-10 rounded-lg bg-white/20 backdrop-blur-md flex items-center justify-center group-hover:bg-white/30 transition-all border border-white/30">
+                    <MapPin size={18} />
                   </div>
-                ))}
+                  <span className="text-sm font-medium">לבונה 88, בית אריה</span>
+                </div>
+                <div className="flex items-center gap-3 text-white/90 hover:text-white transition-colors group cursor-pointer">
+                  <div className="w-10 h-10 rounded-lg bg-white/20 backdrop-blur-md flex items-center justify-center group-hover:bg-white/30 transition-all border border-white/30">
+                    <Mail size={18} />
+                  </div>
+                  <span className="text-sm font-medium">yelena@litay.co.il</span>
+                </div>
+                <a
+                  href="https://www.linkedin.com/in/yelena-enthin-0482a856/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 text-white/90 hover:text-white transition-colors group cursor-pointer"
+                >
+                  <div className="w-10 h-10 rounded-lg bg-white/20 backdrop-blur-md flex items-center justify-center group-hover:bg-white/30 transition-all border border-white/30">
+                    <Linkedin size={18} />
+                  </div>
+                  <span className="text-sm font-medium">LinkedIn Profile</span>
+                </a>
               </div>
             </div>
 
-            {/* Column 4 - Newsletter (2 cols) */}
-            <div className="col-span-2">
+            {/* Column 3 - Newsletter (4 cols) */}
+            <div className="col-span-4">
               <h4 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
                 <div className="w-1.5 h-6 bg-white rounded-full" />
                 עדכונים

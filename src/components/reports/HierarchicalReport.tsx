@@ -1,11 +1,48 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Minus, TrendingUp, Package2, Building2, Landmark, Save, Edit3, BarChart3, TrendingDown } from 'lucide-react';
+import { Plus, Minus, TrendingUp, Package2, Building2, Landmark, Save, Edit3, BarChart3, TrendingDown, X, Maximize2 } from 'lucide-react';
 import Papa from 'papaparse';
 import _ from 'lodash';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useMonthlyInventory } from '../../hooks/useAdjustments';
 import { useAllCategoryAdjustments } from '../../hooks/useCategoryAdjustments';
 import { useSecureCSV } from '../../hooks/useSecureCSV';
+
+// Chart Modal Component for enlarged view
+interface ChartModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  children: React.ReactNode;
+}
+
+const ChartModal: React.FC<ChartModalProps> = ({ isOpen, onClose, title, children }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-xl shadow-2xl w-[90vw] h-[80vh] max-w-[1400px] max-h-[800px] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+          <h2 className="text-xl font-bold text-gray-800">{title}</h2>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+          >
+            <X className="w-6 h-6 text-gray-600" />
+          </button>
+        </div>
+        <div className="flex-1 p-6">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 interface Transaction {
   sortCode: number | null;
@@ -62,6 +99,9 @@ const HierarchicalReport: React.FC = () => {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [expandedSubCategories, setExpandedSubCategories] = useState<Set<string>>(new Set());
   const [expandedAccounts, setExpandedAccounts] = useState<Set<string>>(new Set());
+
+  // State for chart zoom modal
+  const [zoomedChart, setZoomedChart] = useState<'revenue' | 'profit' | 'marketing' | null>(null);
 
 
   // שנה נוכחית למלאי
@@ -1000,17 +1040,23 @@ const HierarchicalReport: React.FC = () => {
 
         {/* עמודה ימין - גרפים */}
         <div className="space-y-3 overflow-y-auto" style={{ maxHeight: '55vh' }}>
-          <div className="bg-white border border-gray-200 rounded-lg p-2.5 shadow-sm">
-            <div className="flex items-center gap-1.5 mb-1">
-              <BarChart3 className="w-3.5 h-3.5 text-green-600" />
-              <h3 className="font-bold text-gray-800 text-xs">הכנסות vs הוצאות</h3>
+          <div
+            className="bg-white border border-gray-200 rounded-lg p-2.5 shadow-sm cursor-pointer hover:shadow-md hover:border-green-300 transition-all group relative"
+            onClick={() => setZoomedChart('revenue')}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-1.5">
+                <BarChart3 className="w-3.5 h-3.5 text-green-600" />
+                <h3 className="font-bold text-gray-800 text-xs">הכנסות vs הוצאות</h3>
+              </div>
+              <Maximize2 className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
             <ResponsiveContainer width="100%" height={140}>
               <BarChart data={monthlyData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" tick={{ fontSize: 9 }} />
                 <YAxis tick={{ fontSize: 8 }} />
-                <Tooltip 
+                <Tooltip
                   formatter={(value: any) => formatCurrency(value)}
                   contentStyle={{ fontSize: '10px' }}
                 />
@@ -1021,17 +1067,23 @@ const HierarchicalReport: React.FC = () => {
             </ResponsiveContainer>
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-lg p-2.5 shadow-sm">
-            <div className="flex items-center gap-1.5 mb-1">
-              <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
-              <h3 className="font-bold text-gray-800 text-xs">מגמת רווחיות</h3>
+          <div
+            className="bg-white border border-gray-200 rounded-lg p-2.5 shadow-sm cursor-pointer hover:shadow-md hover:border-emerald-300 transition-all group relative"
+            onClick={() => setZoomedChart('profit')}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-1.5">
+                <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
+                <h3 className="font-bold text-gray-800 text-xs">מגמת רווחיות</h3>
+              </div>
+              <Maximize2 className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
             <ResponsiveContainer width="100%" height={140}>
               <LineChart data={monthlyData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" tick={{ fontSize: 9 }} />
                 <YAxis tick={{ fontSize: 8 }} />
-                <Tooltip 
+                <Tooltip
                   formatter={(value: any) => formatCurrency(value)}
                   contentStyle={{ fontSize: '10px' }}
                 />
@@ -1043,17 +1095,23 @@ const HierarchicalReport: React.FC = () => {
             </ResponsiveContainer>
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-lg p-2.5 shadow-sm">
-            <div className="flex items-center gap-1.5 mb-1">
-              <BarChart3 className="w-3.5 h-3.5 text-purple-600" />
-              <h3 className="font-bold text-gray-800 text-xs">הכנסות vs הוצאות שיווק</h3>
+          <div
+            className="bg-white border border-gray-200 rounded-lg p-2.5 shadow-sm cursor-pointer hover:shadow-md hover:border-purple-300 transition-all group relative"
+            onClick={() => setZoomedChart('marketing')}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-1.5">
+                <BarChart3 className="w-3.5 h-3.5 text-purple-600" />
+                <h3 className="font-bold text-gray-800 text-xs">הכנסות vs הוצאות שיווק</h3>
+              </div>
+              <Maximize2 className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
             <ResponsiveContainer width="100%" height={150}>
               <BarChart data={monthlyData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" tick={{ fontSize: 9 }} />
                 <YAxis tick={{ fontSize: 8 }} />
-                <Tooltip 
+                <Tooltip
                   formatter={(value: any) => formatCurrency(value)}
                   contentStyle={{ fontSize: '10px' }}
                 />
@@ -1064,6 +1122,71 @@ const HierarchicalReport: React.FC = () => {
             </ResponsiveContainer>
           </div>
         </div>
+
+        {/* Chart Zoom Modals */}
+        <ChartModal
+          isOpen={zoomedChart === 'revenue'}
+          onClose={() => setZoomedChart(null)}
+          title="הכנסות vs הוצאות - תצוגה מורחבת"
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={monthlyData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="month" tick={{ fontSize: 14 }} />
+              <YAxis tick={{ fontSize: 12 }} tickFormatter={(value) => `₪${(value / 1000).toFixed(0)}K`} />
+              <Tooltip
+                formatter={(value: any) => formatCurrency(value)}
+                contentStyle={{ fontSize: '14px' }}
+              />
+              <Legend wrapperStyle={{ fontSize: '14px' }} />
+              <Bar dataKey="revenue" name="הכנסות" fill="#10b981" />
+              <Bar dataKey="operating" name="הוצאות" fill="#6b7280" />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartModal>
+
+        <ChartModal
+          isOpen={zoomedChart === 'profit'}
+          onClose={() => setZoomedChart(null)}
+          title="מגמת רווחיות - תצוגה מורחבת"
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={monthlyData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="month" tick={{ fontSize: 14 }} />
+              <YAxis tick={{ fontSize: 12 }} tickFormatter={(value) => `₪${(value / 1000).toFixed(0)}K`} />
+              <Tooltip
+                formatter={(value: any) => formatCurrency(value)}
+                contentStyle={{ fontSize: '14px' }}
+              />
+              <Legend wrapperStyle={{ fontSize: '14px' }} />
+              <Line type="monotone" dataKey="grossProfit" name="רווח גולמי" stroke="#10b981" strokeWidth={3} dot={{ r: 6 }} />
+              <Line type="monotone" dataKey="operatingProfit" name="רווח תפעולי" stroke="#0ea5e9" strokeWidth={3} dot={{ r: 6 }} />
+              <Line type="monotone" dataKey="netProfit" name="רווח נקי" stroke="#14b8a6" strokeWidth={3} dot={{ r: 6 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </ChartModal>
+
+        <ChartModal
+          isOpen={zoomedChart === 'marketing'}
+          onClose={() => setZoomedChart(null)}
+          title="הכנסות vs הוצאות שיווק - תצוגה מורחבת"
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={monthlyData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="month" tick={{ fontSize: 14 }} />
+              <YAxis tick={{ fontSize: 12 }} tickFormatter={(value) => `₪${(value / 1000).toFixed(0)}K`} />
+              <Tooltip
+                formatter={(value: any) => formatCurrency(value)}
+                contentStyle={{ fontSize: '14px' }}
+              />
+              <Legend wrapperStyle={{ fontSize: '14px' }} />
+              <Bar dataKey="revenue" name="הכנסות" fill="#10b981" />
+              <Bar dataKey="marketing" name="שיווק" fill="#f97316" />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartModal>
       </div>
     </div>
   );

@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir \"C:\\Users\\player1\\.claude-worktrees\\financial-dashboard-new-main\\relaxed-albattani\\public\")",
+      "Bash(dir \"C:\\Projects\\BackUP\\ModiBodiFiles\")",
+      "Bash(findstr:*)",
+      "Bash(powershell:*)",
+      "Bash(python merge_vendor_mapping.py:*)",
+      "Bash(copy \"C:\\Projects\\BackUP\\ModiBodiFiles\\TransactionMonthlyModi_WithVendors.csv\" \"C:\\Users\\player1\\.claude-worktrees\\financial-dashboard-new-main\\relaxed-albattani\\public\\TransactionMonthlyModi.csv\")",
+      "Bash(python -c:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

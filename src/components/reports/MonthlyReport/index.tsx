@@ -127,6 +127,9 @@ const MonthlyReport: React.FC = () => {
                   date: row['ת.אסמכ'] || '',
                   counterAccountName: row['שם חשבון נגדי'] || '',
                   counterAccountNumber: parseInt(row['ח-ן נגדי']) || 0,
+                  // עמודות ספק ממופות
+                  vendorKey: parseInt(row['ספק_מפתח']) || parseInt(row['ח-ן נגדי']) || 0,
+                  vendorName: row['ספק_שם'] || row['שם חשבון נגדי'] || '',
                 }))
                 .filter((tx: Transaction) => tx.accountKey !== 0 && tx.date);
               
@@ -238,19 +241,19 @@ const MonthlyReport: React.FC = () => {
       
       uniqueMonths.forEach(m => data[m] = 0);
       
-      // 🆕 קיבוץ לפי חשבון (accountKey) - רמה 2
-      const accountGroups = _.groupBy(categoryTxs, tx => {
-        const accountKey = tx.accountKey || 0;
-        const accountName = tx.accountName || 'לא ידוע';
-        return `${accountKey}|||${accountName}`;
+      // 🆕 קיבוץ לפי ספק (vendorKey) - משתמש בעמודות הממופות
+      const vendorGroups = _.groupBy(categoryTxs, tx => {
+        const vendorKey = tx.vendorKey || tx.counterAccountNumber || 0;
+        const vendorName = tx.vendorName || tx.counterAccountName || 'לא ידוע';
+        return `${vendorKey}|||${vendorName}`;
       });
-      
-      const vendors: VendorData[] = Object.entries(accountGroups)
+
+      const vendors: VendorData[] = Object.entries(vendorGroups)
         .map(([key, txs]) => {
-          const [accountKey, accountName] = key.split('|||');
+          const [vendorKey, vendorName] = key.split('|||');
           const vendorData: MonthlyData = { total: 0 };
           uniqueMonths.forEach(m => vendorData[m] = 0);
-          
+
           (txs as Transaction[]).forEach(tx => {
             const month = parseInt(tx.date.split('/')[1]);
             if (uniqueMonths.includes(month)) {
@@ -258,9 +261,9 @@ const MonthlyReport: React.FC = () => {
               vendorData.total += tx.amount;
             }
           });
-          
+
           return {
-            name: accountKey && accountKey !== '0' ? `${accountName} - ${accountKey}` : accountName || 'לא ידוע',
+            name: vendorKey && vendorKey !== '0' ? `${vendorName} (${vendorKey})` : vendorName || 'לא ידוע',
             data: vendorData,
             transactions: txs as Transaction[]
           };
