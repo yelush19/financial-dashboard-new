@@ -1,7 +1,8 @@
 // src/hooks/useSecureCSV.ts
-// Hook לטעינת CSV מ-public folder
+// Hook לטעינת CSV מ-Supabase Storage עם authentication
 
 import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabaseClient';
 
 export const useSecureCSV = (fileName: 'TransactionMonthlyModi.csv' | 'BalanceMonthlyModi.csv') => {
   const [csvData, setCsvData] = useState<string | null>(null);
@@ -14,15 +15,28 @@ export const useSecureCSV = (fileName: 'TransactionMonthlyModi.csv' | 'BalanceMo
         setLoading(true);
         setError(null);
 
-        const response = await fetch(`/${fileName}`);
-        if (!response.ok) {
-          throw new Error(`Failed to load ${fileName}`);
+        // קבלת session כדי לוודא שהמשתמש מחובר
+        const { data: { session } } = await supabase.auth.getSession();
+
+        if (!session) {
+          throw new Error('User not authenticated');
         }
 
-        const text = await response.text();
+        // טעינת הקובץ מ-Supabase Storage
+        const { data, error: downloadError } = await supabase.storage
+          .from('csv-files')
+          .download(fileName);
+
+        if (downloadError) {
+          throw new Error(`Failed to load ${fileName}: ${downloadError.message}`);
+        }
+
+        // המרת Blob לטקסט
+        const text = await data.text();
         setCsvData(text);
         setLoading(false);
       } catch (err) {
+        console.error('Error loading CSV:', err);
         setError(err instanceof Error ? err.message : 'Error loading file');
         setLoading(false);
       }
