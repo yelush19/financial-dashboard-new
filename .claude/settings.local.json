@@ -14,7 +14,9 @@
       "Bash(python:*)",
       "Bash(cat:*)",
       "Bash(npm run build:*)",
-      "Bash(npx vite build)"
+      "Bash(npx vite build)",
+      "Bash(npx vercel --prod)",
+      "Bash(npx vercel:*)"
     ],
     "deny": [],
     "ask": []

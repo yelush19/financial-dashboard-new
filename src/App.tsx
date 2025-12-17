@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { FileText, BarChart3, TrendingUp, Mail, MapPin, ExternalLink, Shield, Zap, Award, Linkedin } from "lucide-react";
+import { FileText, BarChart3, TrendingUp, Mail, MapPin, ExternalLink, Shield, Zap, Award, Linkedin, AlertTriangle } from "lucide-react";
 import HierarchicalReport from "./components/reports/HierarchicalReport";
 import MonthlyReport from "./components/reports/MonthlyReport/index";
 import BiurimSystem from "./components/reports/biurim/BiurimSystem";
 import { ProtectedRoute } from './components/ProtectedRoute';
 import SingleMonthPLReport from './components/reports/SingleMonthPL_Filtered/SingleMonthPL__index';
 import { DataProvider } from './contexts/DataContext';
+import RecurringExpensesPage from './components/reports/RecurringExpensesPage';
 
 // פלטת צבעים רשמית של ליתאי
 const LITAY = {
@@ -28,7 +29,8 @@ const tabs = [
   { id: 'hierarchical', label: "דוח רווח והפסד", icon: FileText },
   { id: 'pivot', label: "P&L מצטבר חודשי", icon: BarChart3 },
   { id: 'quarterly', label: "P&L חודש בודד", icon: TrendingUp },
-  { id: 'biurim', label: "מערכת ביאורים", icon: FileText }
+  { id: 'biurim', label: "מערכת ביאורים", icon: FileText },
+  { id: 'recurring', label: "ניתוח הוצאות חוזרות", icon: AlertTriangle }
 ];
 
 function App() {
@@ -99,6 +101,7 @@ function App() {
               {selectedTab === 'quarterly' && <SingleMonthPLReport />}
               {selectedTab === 'raw' && <RawDataContent />}
               {selectedTab === 'biurim' && <BiurimSystem />}
+              {selectedTab === 'recurring' && <RecurringExpensesPage />}
             </div>
           </div>
         </div>

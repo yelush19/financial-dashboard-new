@@ -882,6 +882,38 @@ const MonthlyReport: React.FC = () => {
                   </React.Fragment>
                 ))}
 
+                {/* שורת קניות מצטבר */}
+                <tr className="bg-blue-50 border-t-2 border-blue-300">
+                  <td className="border border-gray-300 px-4 py-2 sticky right-0 bg-blue-50 font-semibold text-blue-800">
+                    <span className="mr-4">🛒</span>
+                    קניות (מצטבר)
+                  </td>
+                  {monthlyData.months.map(m => {
+                    const purchasesTotal = monthlyData.categories
+                      .filter(c => c.type === 'cogs')
+                      .reduce((sum, cat) => {
+                        const adjustment = getAdjustmentValue(String(cat.code), m);
+                        return sum + Math.abs(cat.data[m] || 0) - adjustment;
+                      }, 0);
+                    return (
+                      <td key={m} className="border border-gray-300 px-3 py-2 text-center font-semibold text-blue-700">
+                        {formatCurrency(purchasesTotal)}
+                      </td>
+                    );
+                  })}
+                  <td className="border border-gray-300 px-3 py-2 text-center font-bold text-blue-800">
+                    {formatCurrency(
+                      monthlyData.categories
+                        .filter(c => c.type === 'cogs')
+                        .reduce((sum, cat) => {
+                          const totalAdjustment = monthlyData.months.reduce((s, m) => s + getAdjustmentValue(String(cat.code), m), 0);
+                          return sum + Math.abs(cat.data.total) - totalAdjustment;
+                        }, 0)
+                    )}
+                  </td>
+                  <td className="border border-gray-300"></td>
+                </tr>
+
                 {/* מלאי סגירה - Supabase */}
                 <tr className="bg-green-50">
                   <td className="border border-gray-300 px-4 py-2 sticky right-0 bg-green-50 font-semibold">
