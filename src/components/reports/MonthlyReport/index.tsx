@@ -47,6 +47,7 @@ import { InventoryEditorModal } from './InventoryEditorModal';
 import { AdjustmentsEditorModal } from './AdjustmentsEditorModal';
 import { DrillDownModal } from './DrillDownModal';
 import { useMonthlyInventory } from '../../../hooks/useAdjustments';
+import { useAllCategoryAdjustments } from '../../../hooks/useCategoryAdjustments';
 import { InventoryInput } from '../../InventoryInput';
 import { useSecureCSV } from '../../../hooks/useSecureCSV';
 
@@ -60,6 +61,11 @@ const MonthlyReport: React.FC = () => {
   const [openingInventory, setOpeningInventory] = useState<Inventory>({});
   const [closingInventory, setClosingInventory] = useState<Inventory>({});
   const [adjustments2024, setAdjustments2024] = useState<Adjustments2024>({});
+
+  // טעינת התאמות מ-Supabase
+  const { adjustments: adjustmentsFromSupabase, loading: adjLoading, refresh: refreshAdjustments } =
+    useAllCategoryAdjustments(selectedYear);
+
   const [showBiurModal, setShowBiurModal] = useState(false);
   const [biurData, setBiurData] = useState<BiurData>({
     title: '',
@@ -145,42 +151,27 @@ const MonthlyReport: React.FC = () => {
       }
     };
 
-    const loadInventoryData = async () => {
-      try {
-        const wixData = await window.wixWindow?.backend?.loadInventory();
-        if (wixData?.opening) setOpeningInventory(JSON.parse(wixData.opening));
-        if (wixData?.closing) setClosingInventory(JSON.parse(wixData.closing));
-        
-        const wixAdj = await window.wixWindow?.backend?.loadAdjustments();
-        if (wixAdj?.adjustments) setAdjustments2024(JSON.parse(wixAdj.adjustments));
-      } catch (error) {
-        console.log('Wix load failed, using localStorage:', error);
-        
-        const savedOpeningInv = localStorage.getItem(STORAGE_KEYS.OPENING_INVENTORY);
-        const savedClosingInv = localStorage.getItem(STORAGE_KEYS.CLOSING_INVENTORY);
-        const savedAdjustments = localStorage.getItem(STORAGE_KEYS.ADJUSTMENTS_2024);
-        
-        if (savedOpeningInv) setOpeningInventory(JSON.parse(savedOpeningInv));
-        if (savedClosingInv) setClosingInventory(JSON.parse(savedClosingInv));
-        if (savedAdjustments) setAdjustments2024(JSON.parse(savedAdjustments));
-      }
-    };
-    
     loadTransactions();
-    loadInventoryData();
   }, [csvData, csvError]);
+
+  // עדכון התאמות מ-Supabase
+  useEffect(() => {
+    if (!adjLoading && adjustmentsFromSupabase) {
+      setAdjustments2024(adjustmentsFromSupabase);
+    }
+  }, [adjustmentsFromSupabase, adjLoading]);
 
   // עדכון מלאי מ-Supabase hooks
   useEffect(() => {
     const newOpening: Inventory = {};
     const newClosing: Inventory = {};
-    
+
     inventoryHooks.forEach((hook, index) => {
       const month = index + 1;
       newOpening[month] = hook.opening;
       newClosing[month] = hook.closing;
     });
-    
+
     setOpeningInventory(newOpening);
     setClosingInventory(newClosing);
   }, [

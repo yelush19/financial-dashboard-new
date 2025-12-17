@@ -4,6 +4,7 @@ import Papa from 'papaparse';
 import _ from 'lodash';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useMonthlyInventory } from '../../hooks/useAdjustments';
+import { useAllCategoryAdjustments } from '../../hooks/useCategoryAdjustments';
 
 interface Transaction {
   sortCode: number | null;
@@ -64,6 +65,10 @@ const HierarchicalReport: React.FC = () => {
   // שנה נוכחית למלאי
   const selectedYear = 2025;
 
+  // טעינת התאמות מ-Supabase
+  const { adjustments: adjustmentsFromSupabase, loading: adjLoading, refresh: refreshAdjustments } =
+    useAllCategoryAdjustments(selectedYear);
+
   // Hooks למלאי מ-Supabase - לכל 12 חודשים
   const inv1 = useMonthlyInventory(800, selectedYear, 1);
   const inv2 = useMonthlyInventory(800, selectedYear, 2);
@@ -97,15 +102,8 @@ const HierarchicalReport: React.FC = () => {
     }
   });
 
-  // ✅ התאמות 2024 - משיכה אוטומטית מהדוח החודשי
-  const [adjustments2024Monthly, setAdjustments2024Monthly] = useState<{ [categoryCode: string]: { [month: number]: number } }>(() => {
-    try {
-      const saved = localStorage.getItem('adjustments2024');
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
-  });
+  // ✅ התאמות 2024 - טעינה מ-Supabase
+  const [adjustments2024Monthly, setAdjustments2024Monthly] = useState<{ [categoryCode: string]: { [month: number]: number } }>({});
 
   // חישוב סכומים מצטברים של התאמות
   const getTotalAdjustment = (categoryCode: string): number => {
@@ -127,17 +125,24 @@ const HierarchicalReport: React.FC = () => {
   };
 
 
+  // סנכרון התאמות מ-Supabase
+  useEffect(() => {
+    if (!adjLoading && adjustmentsFromSupabase) {
+      setAdjustments2024Monthly(adjustmentsFromSupabase);
+    }
+  }, [adjustmentsFromSupabase, adjLoading]);
+
   // סנכרון מלאי מ-Supabase hooks ל-state
   useEffect(() => {
     const newOpening: Record<number, number> = {};
     const newClosing: Record<number, number> = {};
-    
+
     inventoryHooks.forEach((hook, index) => {
       const month = index + 1;
       newOpening[month] = hook.opening;
       newClosing[month] = hook.closing;
     });
-    
+
     setOpeningInventory(newOpening);
     setClosingInventory(newClosing);
   }, [
