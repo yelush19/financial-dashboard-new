@@ -8,16 +8,18 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Types
 export type AdjustmentType = 
-  | 'inventory_opening'        // מלאי פתיחה
-  | 'inventory_closing'        // מלאי סגירה
-  | 'prior_year_adjustment'    // התאמות שנה קודמת
-  | 'other_adjustment';        // התאמות אחרות
+  | 'inventory_opening'
+  | 'inventory_closing'
+  | 'prior_year_adjustment'
+  | 'category_adjustment'
+  | 'other_adjustment';
 
 export interface Adjustment {
   id?: number;
   account_key: number;
+  sort_code?: number;
   year: number;
-  month: number | null;  // null = שנתי (כמו 2024)
+  month: number | null;
   adjustment_type: AdjustmentType;
   amount: number;
   note?: string;
@@ -50,16 +52,19 @@ export async function getAccountAdjustments(
 
     const { data, error } = await query;
 
-    if (error) throw error;
+    if (error) {
+      console.warn('Warning fetching adjustments:', error.message);
+      return [];
+    }
     return data || [];
   } catch (error) {
-    console.error('Error fetching adjustments:', error);
+    console.warn('Exception fetching adjustments:', error);
     return [];
   }
 }
 
 /**
- * טעינת התאמה ספציפית
+ * טעינת התאמה ספציפית - עם טיפול בשגיאות 406
  */
 export async function getAdjustment(
   accountKey: number,
@@ -81,30 +86,32 @@ export async function getAdjustment(
       query = query.eq('month', month);
     }
 
-    const { data, error } = await query.single();
+    const { data, error } = await query.maybeSingle();
 
     if (error) {
-      if (error.code === 'PGRST116') return null; // לא נמצא
-      throw error;
+      // שגיאות נפוצות - לא לזרוק, רק להחזיר null
+      console.warn(`Warning getting adjustment (${accountKey}, ${year}, ${month}, ${adjustmentType}):`, error.message);
+      return null;
     }
 
     return data;
   } catch (error) {
-    console.error('Error fetching adjustment:', error);
+    console.warn('Exception getting adjustment:', error);
     return null;
   }
 }
 
 /**
- * שמירת/עדכון התאמה
+ * שמירה/עדכון התאמה
  */
-export async function saveAdjustment(adjustment: Adjustment): Promise<boolean> {
+export async function saveAdjustment(adjustment: Omit<Adjustment, 'id' | 'created_at' | 'updated_at'>): Promise<boolean> {
   try {
     const { error } = await supabase
       .from('adjustments')
       .upsert(
         {
           account_key: adjustment.account_key,
+          sort_code: adjustment.sort_code || adjustment.account_key,
           year: adjustment.year,
           month: adjustment.month,
           adjustment_type: adjustment.adjustment_type,
@@ -113,14 +120,18 @@ export async function saveAdjustment(adjustment: Adjustment): Promise<boolean> {
           updated_at: new Date().toISOString()
         },
         {
-          onConflict: 'account_key,year,month,adjustment_type'
+          onConflict: 'account_key,year,month,adjustment_type',
+          ignoreDuplicates: false
         }
       );
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error saving adjustment:', error);
+      return false;
+    }
     return true;
   } catch (error) {
-    console.error('Error saving adjustment:', error);
+    console.error('Exception saving adjustment:', error);
     return false;
   }
 }
@@ -150,10 +161,13 @@ export async function deleteAdjustment(
 
     const { error } = await query;
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error deleting adjustment:', error);
+      return false;
+    }
     return true;
   } catch (error) {
-    console.error('Error deleting adjustment:', error);
+    console.error('Exception deleting adjustment:', error);
     return false;
   }
 }
@@ -163,42 +177,31 @@ export async function deleteAdjustment(
 // ===============================
 
 /**
- * טעינת מלאי פתיחה לחודש
+ * טעינת מלאי פתיחה לחודש - מחזיר 0 אם אין נתונים
  */
 export async function getInventoryOpening(
   accountKey: number,
   year: number,
   month: number
 ): Promise<number> {
-  const adjustment = await getAdjustment(
-    accountKey,
-    year,
-    month,
-    'inventory_opening'
-  );
+  const adjustment = await getAdjustment(accountKey, year, month, 'inventory_opening');
   return adjustment?.amount || 0;
 }
 
 /**
- * טעינת מלאי סגירה לחודש
+ * טעינת מלאי סגירה לחודש - מחזיר 0 אם אין נתונים
  */
 export async function getInventoryClosing(
   accountKey: number,
   year: number,
   month: number
 ): Promise<number> {
-  const adjustment = await getAdjustment(
-    accountKey,
-    year,
-    month,
-    'inventory_closing'
-  );
+  const adjustment = await getAdjustment(accountKey, year, month, 'inventory_closing');
   return adjustment?.amount || 0;
 }
 
 /**
  * שמירת מלאי פתיחה
- * מאפשרת עריכה ידנית במידת הצורך
  */
 export async function saveInventoryOpening(
   accountKey: number,
@@ -209,6 +212,7 @@ export async function saveInventoryOpening(
 ): Promise<boolean> {
   return saveAdjustment({
     account_key: accountKey,
+    sort_code: accountKey,
     year,
     month,
     adjustment_type: 'inventory_opening',
@@ -231,6 +235,7 @@ export async function saveInventoryClosing(
     // 1. שמירת מלאי סגירה
     const closingSaved = await saveAdjustment({
       account_key: accountKey,
+      sort_code: accountKey,
       year,
       month,
       adjustment_type: 'inventory_closing',
@@ -247,6 +252,7 @@ export async function saveInventoryClosing(
     // 3. יצירת מלאי פתיחה אוטומטי לחודש הבא
     await saveAdjustment({
       account_key: accountKey,
+      sort_code: accountKey,
       year: nextYear,
       month: nextMonth,
       adjustment_type: 'inventory_opening',
@@ -270,12 +276,7 @@ export async function getYearlyInventory(
   type: 'opening' | 'closing'
 ): Promise<number> {
   const adjustmentType = type === 'opening' ? 'inventory_opening' : 'inventory_closing';
-  const adjustment = await getAdjustment(
-    accountKey,
-    year,
-    null,  // חודש null = שנתי
-    adjustmentType
-  );
+  const adjustment = await getAdjustment(accountKey, year, null, adjustmentType);
   return adjustment?.amount || 0;
 }
 
@@ -292,8 +293,9 @@ export async function saveYearlyInventory(
   const adjustmentType = type === 'opening' ? 'inventory_opening' : 'inventory_closing';
   return saveAdjustment({
     account_key: accountKey,
+    sort_code: accountKey,
     year,
-    month: null,  // חודש null = שנתי
+    month: null,
     adjustment_type: adjustmentType,
     amount,
     note
@@ -306,18 +308,12 @@ export async function saveYearlyInventory(
 
 /**
  * טעינת התאמות שנה קודמת
- * דוגמה: בשנת 2025 - התאמות 2024
  */
 export async function getPriorYearAdjustment(
   accountKey: number,
   currentYear: number
 ): Promise<number> {
-  const adjustment = await getAdjustment(
-    accountKey,
-    currentYear,
-    null,  // שנתי
-    'prior_year_adjustment'
-  );
+  const adjustment = await getAdjustment(accountKey, currentYear, null, 'prior_year_adjustment');
   return adjustment?.amount || 0;
 }
 
@@ -332,6 +328,7 @@ export async function savePriorYearAdjustment(
 ): Promise<boolean> {
   return saveAdjustment({
     account_key: accountKey,
+    sort_code: accountKey,
     year: currentYear,
     month: null,
     adjustment_type: 'prior_year_adjustment',
@@ -346,7 +343,6 @@ export async function savePriorYearAdjustment(
 
 /**
  * חישוב עלות מכר לחודש
- * נוסחה: מלאי פתיחה + רכישות - מלאי סגירה
  */
 export async function calculateMonthlyCOGS(
   accountKey: number,
@@ -356,7 +352,6 @@ export async function calculateMonthlyCOGS(
 ): Promise<number> {
   const opening = await getInventoryOpening(accountKey, year, month);
   const closing = await getInventoryClosing(accountKey, year, month);
-  
   return opening + purchases - closing;
 }
 
@@ -368,17 +363,12 @@ export async function calculateYearlyCOGS(
   year: number,
   totalPurchases: number
 ): Promise<number> {
-  // מלאי פתיחה שנתי
   const opening = await getYearlyInventory(accountKey, year, 'opening');
-  
-  // מלאי סגירה - האם זה שנתי או מהחודש האחרון?
   let closing: number;
   
   if (year < 2025) {
-    // לפני 2025 - מלאי שנתי
     closing = await getYearlyInventory(accountKey, year, 'closing');
   } else {
-    // מ-2025 ואילך - מלאי סגירה מדצמבר
     closing = await getInventoryClosing(accountKey, year, 12);
   }
   
@@ -387,7 +377,6 @@ export async function calculateYearlyCOGS(
 
 /**
  * טעינת כל המלאים לחשבון בשנה מסוימת
- * מחזיר מפה: חודש -> {opening, closing}
  */
 export async function getAccountInventoryMap(
   accountKey: number,
@@ -395,18 +384,15 @@ export async function getAccountInventoryMap(
 ): Promise<Map<number, { opening: number; closing: number }>> {
   const inventoryMap = new Map<number, { opening: number; closing: number }>();
   
-  // טעינת כל ההתאמות של החשבון לשנה
   const adjustments = await getAccountAdjustments(accountKey, year);
   
-  // סינון רק מלאי
   const inventoryAdjustments = adjustments.filter(
     adj => adj.adjustment_type === 'inventory_opening' || 
            adj.adjustment_type === 'inventory_closing'
   );
   
-  // מיפוי לפי חודש
   for (const adj of inventoryAdjustments) {
-    if (adj.month === null) continue; // דילוג על שנתי
+    if (adj.month === null) continue;
     
     if (!inventoryMap.has(adj.month)) {
       inventoryMap.set(adj.month, { opening: 0, closing: 0 });
@@ -447,10 +433,92 @@ export async function getYearAdjustments(year: number): Promise<Adjustment[]> {
       .neq('adjustment_type', 'inventory_closing')
       .order('account_key', { ascending: true });
 
-    if (error) throw error;
+    if (error) {
+      console.warn('Warning fetching year adjustments:', error.message);
+      return [];
+    }
     return data || [];
   } catch (error) {
-    console.error('Error fetching year adjustments:', error);
+    console.warn('Exception fetching year adjustments:', error);
     return [];
+  }
+}
+
+// ===============================
+// 6. פונקציות התאמות קטגוריה
+// ===============================
+
+/**
+ * טעינת התאמות קטגוריה לפי קוד מיון
+ */
+export async function getCategoryAdjustments(
+  sortCode: number,
+  year: number
+): Promise<{ [month: number]: number }> {
+  try {
+    const { data, error } = await supabase
+      .from('adjustments')
+      .select('*')
+      .eq('sort_code', sortCode)
+      .eq('year', year)
+      .in('adjustment_type', ['category_adjustment', 'prior_year_adjustment']);
+
+    if (error) {
+      console.warn('Warning fetching category adjustments:', error.message);
+      return {};
+    }
+
+    const result: { [month: number]: number } = {};
+    data?.forEach((adj: any) => {
+      if (adj.month !== null) {
+        result[adj.month] = (result[adj.month] || 0) + adj.amount;
+      }
+    });
+
+    return result;
+  } catch (error) {
+    console.warn('Exception fetching category adjustments:', error);
+    return {};
+  }
+}
+
+/**
+ * שמירת התאמת קטגוריה
+ */
+export async function saveCategoryAdjustment(
+  sortCode: number,
+  year: number,
+  month: number,
+  amount: number,
+  note?: string
+): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('adjustments')
+      .upsert(
+        {
+          sort_code: sortCode,
+          account_key: sortCode, // נשמור גם ב-account_key לתאימות
+          year,
+          month,
+          adjustment_type: 'category_adjustment',
+          amount,
+          note,
+          updated_at: new Date().toISOString()
+        },
+        {
+          onConflict: 'sort_code,year,month,adjustment_type',
+          ignoreDuplicates: false
+        }
+      );
+
+    if (error) {
+      console.error('Error saving category adjustment:', error);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error('Exception saving category adjustment:', error);
+    return false;
   }
 }

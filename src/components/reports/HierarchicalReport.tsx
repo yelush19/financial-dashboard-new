@@ -238,8 +238,9 @@ const HierarchicalReport: React.FC = () => {
       const financial = _.sumBy(monthTxs.filter(tx => [813, 990, 991].includes(tx.sortCode || 0)), 'amount');
       const marketing = _.sumBy(monthTxs.filter(tx => [805, 804].includes(tx.sortCode || 0)), 'amount');
 
-      const openingInv = openingInventory[month] || 0;
-      const closingInv = closingInventory[month] || 0;
+      // מלאי מ-Supabase - inventoryHooks[month-1] כי המערך מתחיל מ-0
+      const openingInv = inventoryHooks[month - 1]?.opening || 0;
+      const closingInv = inventoryHooks[month - 1]?.closing || 0;
       const actualCOGS = Math.abs(cogs) + openingInv - closingInv;
 
       return {
@@ -254,7 +255,7 @@ const HierarchicalReport: React.FC = () => {
         netProfit: revenue - actualCOGS + operating + financial,
       };
     });
-  }, [transactions, openingInventory, closingInventory]);
+  }, [transactions, inventoryHooks]);
 
   const hierarchicalData = useMemo(() => {
     if (!transactions.length) return { 
@@ -348,11 +349,6 @@ const HierarchicalReport: React.FC = () => {
     
     const totalClosingInv = lastMonthWithClosing ? lastMonthWithClosing.closing : 0;
     
-    console.log('🔵 inv1:', inv1);
-    console.log('🔵 inv11:', inv11);
-    console.log('🔵 totalOpeningInv:', totalOpeningInv);
-    console.log('🔵 totalClosingInv:', totalClosingInv);
-    console.log('🔵 lastMonthWithClosing:', lastMonthWithClosing);
     
     const cogsAdjustment = getTotalAdjustment('800');
     const actualCOGS = purchases + totalOpeningInv - totalClosingInv + cogsAdjustment;
@@ -441,6 +437,8 @@ const HierarchicalReport: React.FC = () => {
         grossProfit: totalRevenue + totalCOGS,
         operatingProfit: totalRevenue + totalCOGS + totalOperating,
         netProfit: totalRevenue + totalCOGS + totalOperating + totalFinancial,
+        openingInventory: totalOpeningInv,
+        closingInventory: totalClosingInv,
       },
       dateRange: formattedDateRange
     };
@@ -708,13 +706,13 @@ const HierarchicalReport: React.FC = () => {
                       <div className="bg-white rounded-md p-2 border border-green-200">
                         <div className="text-xs text-gray-600 mb-1">מלאי פתיחה (ינואר)</div>
                         <div className="text-lg font-bold text-green-700">
-                          {formatCurrency(hierarchicalData.totals.revenue > 0 ? totalOpeningInv : 0)}
+                          {formatCurrency(hierarchicalData.totals.openingInventory || 0)}
                         </div>
                       </div>
                       <div className="bg-white rounded-md p-2 border border-green-200">
                         <div className="text-xs text-gray-600 mb-1">מלאי סגירה (חודש אחרון)</div>
                         <div className="text-lg font-bold text-green-700">
-                          {formatCurrency(hierarchicalData.totals.revenue > 0 ? totalClosingInv : 0)}
+                          {formatCurrency(hierarchicalData.totals.closingInventory || 0)}
                         </div>
                       </div>
                     </div>

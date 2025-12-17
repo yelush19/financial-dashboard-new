@@ -5,6 +5,7 @@ import { ChevronDown, ChevronRight, ChevronLeft, Save, Download, TrendingUp, Ale
 import Papa from 'papaparse';
 import _ from 'lodash';
 import { filterCancellingTransactions } from '../../../utils/transactionFilter';
+import { ImportAdjustmentsButton } from '../../ImportAdjustmentsButton';
 console.log('🔴 INDEX.TSX LOADED!');
 
 
@@ -47,8 +48,10 @@ import { AdjustmentsEditorModal } from './AdjustmentsEditorModal';
 import { DrillDownModal } from './DrillDownModal';
 import { useMonthlyInventory } from '../../../hooks/useAdjustments';
 import { InventoryInput } from '../../InventoryInput';
+import { useSecureCSV } from '../../../hooks/useSecureCSV';
 
 const MonthlyReport: React.FC = () => {
+  const { csvData, loading: csvLoading, error: csvError } = useSecureCSV('TransactionMonthlyModi.csv');
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -94,19 +97,14 @@ const MonthlyReport: React.FC = () => {
   const inventoryHooks = [inv1, inv2, inv3, inv4, inv5, inv6, inv7, inv8, inv9, inv10, inv11, inv12];
 
   useEffect(() => {
+    if (!csvData) return;
+
     const loadTransactions = async () => {
       try {
         setLoading(true);
-        setError(null);
-        
-        const response = await fetch(REPORT_CONFIG.CSV_FILE_PATH);
-        if (!response.ok) {
-          throw new Error(`שגיאה בטעינת הקובץ: ${response.status}`);
-        }
+        setError(csvError);
 
-        const text = await response.text();
-        
-        Papa.parse(text, {
+        Papa.parse(csvData, {
           header: true,
           skipEmptyLines: true,
           complete: (results) => {
@@ -170,7 +168,7 @@ const MonthlyReport: React.FC = () => {
     
     loadTransactions();
     loadInventoryData();
-  }, []);
+  }, [csvData, csvError]);
 
   // עדכון מלאי מ-Supabase hooks
   useEffect(() => {
@@ -1204,15 +1202,16 @@ const MonthlyReport: React.FC = () => {
       />
 
       <AdjustmentsEditorModal
-        isOpen={showAdjustmentsEditor}
-        onClose={() => setShowAdjustmentsEditor(false)}
-        adjustments={adjustments2024}
-        onSave={(newAdj) => {
-          setAdjustments2024(newAdj);
-          localStorage.setItem(STORAGE_KEYS.ADJUSTMENTS_2024, JSON.stringify(newAdj));
-        }}
-        formatCurrency={formatCurrency}
-      />
+  isOpen={showAdjustmentsEditor}
+  onClose={() => setShowAdjustmentsEditor(false)}
+  adjustments={adjustments2024}
+  onSave={(newAdj) => {
+    setAdjustments2024(newAdj);
+    // נשמר ב-Supabase - אין צורך ב-localStorage!
+  }}
+  formatCurrency={formatCurrency}
+  year={selectedYear}
+/>
 
       {drillDownData && (
         <DrillDownModal

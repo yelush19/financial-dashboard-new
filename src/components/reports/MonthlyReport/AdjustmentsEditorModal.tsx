@@ -1,8 +1,9 @@
 // src/components/reports/MonthlyReport/AdjustmentsEditorModal.tsx
-// מודל עריכת עדכוני 2024
+// מודל עריכת עדכוני 2024 - גרסה עם Supabase
 
 import React, { useState, useEffect } from 'react';
-import { X, Save, Calculator, AlertCircle } from 'lucide-react';
+import { X, Save, Calculator, AlertCircle, Loader2 } from 'lucide-react';
+import { useBatchCategoryAdjustments } from '../../../hooks/useCategoryAdjustments';
 
 interface Adjustments2024 {
   [categoryCode: string]: {
@@ -16,6 +17,7 @@ interface AdjustmentsEditorModalProps {
   adjustments: Adjustments2024;
   onSave: (adjustments: Adjustments2024) => void;
   formatCurrency: (amount: number) => string;
+  year: number; // ✅ שנה להזנה
 }
 
 const MONTH_NAMES = [
@@ -41,10 +43,14 @@ export const AdjustmentsEditorModal: React.FC<AdjustmentsEditorModalProps> = ({
   onClose,
   adjustments,
   onSave,
-  formatCurrency
+  formatCurrency,
+  year
 }) => {
   const [localAdjustments, setLocalAdjustments] = useState<Adjustments2024>({});
+  const [isSaving, setIsSaving] = useState(false);
   const months = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+  
+  const { saveBatchAdjustments, loading: hookLoading, error: hookError } = useBatchCategoryAdjustments(year);
 
   useEffect(() => {
     if (isOpen) {
@@ -72,9 +78,24 @@ export const AdjustmentsEditorModal: React.FC<AdjustmentsEditorModalProps> = ({
     return String(val);
   };
 
-  const handleSave = () => {
-    onSave(localAdjustments);
-    onClose();
+  const handleSave = async () => {
+    try {
+      setIsSaving(true);
+      
+      // שמירה ל-Supabase
+      await saveBatchAdjustments(localAdjustments);
+      
+      // עדכון ה-parent component
+      onSave(localAdjustments);
+      
+      // סגירת המודל
+      onClose();
+    } catch (error) {
+      console.error('Failed to save adjustments:', error);
+      alert('שגיאה בשמירת ההתאמות. אנא נסה שוב.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // חישוב סיכומים
@@ -107,13 +128,14 @@ export const AdjustmentsEditorModal: React.FC<AdjustmentsEditorModalProps> = ({
           <div className="flex items-center gap-3">
             <Calculator className="w-6 h-6" />
             <div>
-              <h3 className="text-lg font-bold">עדכוני 2024</h3>
-              <p className="text-sm opacity-90">התאמות והוספות חד-פעמיות לשנת 2024</p>
+              <h3 className="text-lg font-bold">עדכוני {year}</h3>
+              <p className="text-sm opacity-90">התאמות והוספות חד-פעמיות - נשמר ב-Supabase</p>
             </div>
           </div>
           <button
             onClick={onClose}
             className="p-2 rounded-full hover:bg-white hover:bg-opacity-20 transition-colors"
+            disabled={isSaving}
           >
             <X className="w-6 h-6" />
           </button>
@@ -125,7 +147,7 @@ export const AdjustmentsEditorModal: React.FC<AdjustmentsEditorModalProps> = ({
             <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
             <div className="text-sm text-amber-800">
               <strong>איך זה עובד:</strong> כאן תוכל להוסיף סכומים חד-פעמיים לכל קטגוריה וחודש. 
-              למשל: תשלום מיוחד, תיקון חשבונאי, או התאמה משנה קודמת.
+              למשל: תשלום מיוחד, תיקון חשבונאי, או התאמה משנה קודמת. הנתונים נשמרים ישירות ב-Supabase.
             </div>
           </div>
         </div>
@@ -165,6 +187,7 @@ export const AdjustmentsEditorModal: React.FC<AdjustmentsEditorModalProps> = ({
                         onChange={(e) => handleChange(cat.code, m, e.target.value)}
                         onFocus={(e) => e.target.select()}
                         placeholder="-"
+                        disabled={isSaving}
                       />
                     </td>
                   ))}
@@ -197,18 +220,29 @@ export const AdjustmentsEditorModal: React.FC<AdjustmentsEditorModalProps> = ({
           <button
             onClick={onClose}
             className="px-4 py-2 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors font-medium"
+            disabled={isSaving}
           >
             ביטול
           </button>
           <button
             onClick={handleSave}
-            className="flex items-center gap-2 px-6 py-2 text-white rounded-lg font-medium transition-colors shadow-sm"
+            disabled={isSaving}
+            className="flex items-center gap-2 px-6 py-2 text-white rounded-lg font-medium transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
               background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
             }}
           >
-            <Save className="w-4 h-4" />
-            שמור עדכונים
+            {isSaving ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                שומר...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                שמור עדכונים
+              </>
+            )}
           </button>
         </div>
       </div>
