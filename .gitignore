@@ -26,3 +26,19 @@ dist-ssr
 *.backup
 *.bak
 *.old
+
+# Data files - never commit sensitive data
+*.csv
+*.xlsx
+*.xls
+/data/
+/uploads/
+*.db
+*.sqlite
+
+# Environment and secrets
+.env
+.env.local
+.env.production
+*.pem
+*.key
