@@ -1,8 +1,9 @@
 // src/hooks/useSecureCSV.ts
-// Hook לטעינת CSV מ-Context או מ-Public (fallback)
+// Hook לטעינת CSV מ-Context, localStorage, או Supabase
 
 import { useState, useEffect } from 'react';
 import { useDataContext } from '../contexts/DataContext';
+import { loadCSVFile } from '../lib/supabaseClient';
 
 export const useSecureCSV = (fileName: 'TransactionMonthlyModi.csv' | 'BalanceMonthlyModi.csv') => {
   const { transactionsData, balanceData } = useDataContext();
@@ -29,30 +30,18 @@ export const useSecureCSV = (fileName: 'TransactionMonthlyModi.csv' | 'BalanceMo
           return;
         }
 
-        // אם לא, נסה לטעון מ-localStorage
-        const storedData = localStorage.getItem(
-          fileName === 'TransactionMonthlyModi.csv' ? 'transactionsData' : 'balanceData'
-        );
+        // אם לא, נסה לטעון מ-localStorage/Supabase
+        const fileType = fileName === 'TransactionMonthlyModi.csv' ? 'transactions' : 'balance';
+        const storedData = await loadCSVFile(fileType);
 
         if (storedData) {
           setCsvData(storedData);
-          // עדכן גם את ה-Context
-          if (fileName === 'TransactionMonthlyModi.csv') {
-            // Context will be updated via DataProvider
-          }
           setLoading(false);
           return;
         }
 
-        // Fallback - נסה לטעון מ-public/ (לתמיכה לאחור)
-        const response = await fetch(`/${fileName}`);
-        if (!response.ok) {
-          throw new Error(`קובץ ${fileName} לא נמצא. אנא העלה את הקובץ דרך ממשק ההעלאה.`);
-        }
-
-        const text = await response.text();
-        setCsvData(text);
-        setLoading(false);
+        // אם אין נתונים בכלל, הצג הודעה
+        throw new Error(`קובץ ${fileName} לא נמצא. אנא העלה את הקובץ דרך ממשק ההעלאה.`);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'שגיאה בטעינת הקובץ');
         setLoading(false);
