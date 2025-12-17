@@ -52,6 +52,9 @@ import { InventoryInput } from '../../InventoryInput';
 import { useSecureCSV } from '../../../hooks/useSecureCSV';
 
 const MonthlyReport: React.FC = () => {
+  // שנה נוכחית - צריך להיות מוגדר לפני השימוש בו!
+  const selectedYear = 2025;
+
   const { csvData, loading: csvLoading, error: csvError } = useSecureCSV('TransactionMonthlyModi.csv');
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -81,9 +84,6 @@ const MonthlyReport: React.FC = () => {
     monthName: string;
     transactions: Transaction[];
   } | null>(null);
-
-  // שנה נוכחית למלאי
-  const selectedYear = 2025;
 
   // Hooks למלאי - חשבון 800 - לכל 12 חודשים
   const inv1 = useMonthlyInventory(800, selectedYear, 1);
