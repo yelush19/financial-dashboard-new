@@ -19,6 +19,7 @@ import { StatsCards } from './StatsCards';
 import { CategoryRow } from './CategoryRow';
 import { BiurModal } from './SingleMonthPL__BiurModal';
 import { useMonthlyInventory } from '../../../hooks/useAdjustments';
+import { useAllCategoryAdjustments } from '../../../hooks/useCategoryAdjustments';
 import { InventoryInput } from '../../InventoryInput';
 
 console.log('🟢 SingleMonthPL INDEX.TSX LOADED!');
@@ -45,6 +46,9 @@ const SingleMonthPLReport: React.FC = () => {
 
   // Hook למלאי חשבון 800
   const inventory800 = useMonthlyInventory(800, selectedYear, selectedMonth || 1);
+
+  // טעינת התאמות מ-Supabase
+  const { adjustments: adjustmentsFromSupabase, loading: adjLoading } = useAllCategoryAdjustments(selectedYear);
 
   // טעינת נתונים
   useEffect(() => {
@@ -271,6 +275,12 @@ const SingleMonthPLReport: React.FC = () => {
     };
   }, [transactions, selectedMonth, showCancelled, cancelledKoterot]);
 
+  // קבלת התאמה לקטגוריה וחודש
+  const getAdjustment = (sortCode: number): number => {
+    if (!selectedMonth || !adjustmentsFromSupabase) return 0;
+    return adjustmentsFromSupabase[sortCode]?.[selectedMonth] || 0;
+  };
+
   // פונקציות עזר
   const formatCurrency = (amount: number): string => {
     const formatted = new Intl.NumberFormat('he-IL', {
@@ -451,16 +461,51 @@ const SingleMonthPLReport: React.FC = () => {
             </tr>
 
             {/* עלות המכר */}
-            {monthData.categories.filter(c => c.type === 'cogs').map(cat => (
-              <CategoryRow
-                key={cat.code}
-                category={cat}
-                onShowBiur={handleShowBiur}
-                formatCurrency={formatCurrency}
-                monthName={monthName}
-                totalRevenue={monthData.summary.revenue}
-              />
-            ))}
+            {monthData.categories.filter(c => c.type === 'cogs').map(cat => {
+              const adjustment = getAdjustment(Number(cat.code));
+              const adjustedAmount = Math.abs(cat.amount) - adjustment;
+              return (
+                <React.Fragment key={cat.code}>
+                  <CategoryRow
+                    category={cat}
+                    onShowBiur={handleShowBiur}
+                    formatCurrency={formatCurrency}
+                    monthName={monthName}
+                    totalRevenue={monthData.summary.revenue}
+                  />
+                  {adjustment !== 0 && (
+                    <tr className="bg-yellow-50">
+                      <td className="border border-gray-300 px-4 py-2 pr-8 text-sm text-gray-600">
+                        התאמה {cat.code}
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2 text-center text-orange-700">
+                        {formatCurrency(-adjustment)}
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2 text-center text-sm">
+                        {monthData.summary.revenue > 0
+                          ? (-adjustment / monthData.summary.revenue * 100).toFixed(1)
+                          : 0}%
+                      </td>
+                      <td className="border border-gray-300"></td>
+                    </tr>
+                  )}
+                  <tr className="bg-gray-50 font-semibold">
+                    <td className="border border-gray-300 px-4 py-2 pr-8">
+                      סה"כ {cat.code} מעודכן
+                    </td>
+                    <td className="border border-gray-300 px-4 py-2 text-center">
+                      {formatCurrency(-adjustedAmount)}
+                    </td>
+                    <td className="border border-gray-300 px-4 py-2 text-center">
+                      {monthData.summary.revenue > 0
+                        ? (adjustedAmount / monthData.summary.revenue * 100).toFixed(1)
+                        : 0}%
+                    </td>
+                    <td className="border border-gray-300"></td>
+                  </tr>
+                </React.Fragment>
+              );
+            })}
 
             {/* מלאי - חשבון 800 */}
             console.log('🔵 selectedMonth:', selectedMonth, 'inventory800:', inventory800);
@@ -499,16 +544,51 @@ const SingleMonthPLReport: React.FC = () => {
             </tr>
 
             {/* הוצאות תפעול */}
-            {monthData.categories.filter(c => c.type === 'operating').map(cat => (
-              <CategoryRow
-                key={cat.code}
-                category={cat}
-                onShowBiur={handleShowBiur}
-                formatCurrency={formatCurrency}
-                monthName={monthName}
-                totalRevenue={monthData.summary.revenue}
-              />
-            ))}
+            {monthData.categories.filter(c => c.type === 'operating').map(cat => {
+              const adjustment = getAdjustment(Number(cat.code));
+              const adjustedAmount = Math.abs(cat.amount) - adjustment;
+              return (
+                <React.Fragment key={cat.code}>
+                  <CategoryRow
+                    category={cat}
+                    onShowBiur={handleShowBiur}
+                    formatCurrency={formatCurrency}
+                    monthName={monthName}
+                    totalRevenue={monthData.summary.revenue}
+                  />
+                  {adjustment !== 0 && (
+                    <tr className="bg-yellow-50">
+                      <td className="border border-gray-300 px-4 py-2 pr-8 text-sm text-gray-600">
+                        התאמה {cat.code}
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2 text-center text-orange-700">
+                        {formatCurrency(-adjustment)}
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2 text-center text-sm">
+                        {monthData.summary.revenue > 0
+                          ? (-adjustment / monthData.summary.revenue * 100).toFixed(1)
+                          : 0}%
+                      </td>
+                      <td className="border border-gray-300"></td>
+                    </tr>
+                  )}
+                  <tr className="bg-gray-50 font-semibold">
+                    <td className="border border-gray-300 px-4 py-2 pr-8">
+                      סה"כ {cat.code} מעודכן
+                    </td>
+                    <td className="border border-gray-300 px-4 py-2 text-center">
+                      {formatCurrency(-adjustedAmount)}
+                    </td>
+                    <td className="border border-gray-300 px-4 py-2 text-center">
+                      {monthData.summary.revenue > 0
+                        ? (adjustedAmount / monthData.summary.revenue * 100).toFixed(1)
+                        : 0}%
+                    </td>
+                    <td className="border border-gray-300"></td>
+                  </tr>
+                </React.Fragment>
+              );
+            })}
 
             {/* רווח תפעולי */}
             <tr className="bg-teal-100 font-bold">
